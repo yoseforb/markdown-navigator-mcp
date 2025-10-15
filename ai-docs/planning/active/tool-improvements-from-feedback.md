@@ -96,7 +96,7 @@ markdown-mcp/
 **Estimated Time**: 6-8 hours
 
 **Tasks:**
-1. Add JSON output format to `markdown_tree`
+1. Add JSON output format to `markdown_tree`, make json output default
 2. Implement hierarchical JSON tree structure
 3. Add pattern filtering to `markdown_tree`
 4. Update tests for new functionality
