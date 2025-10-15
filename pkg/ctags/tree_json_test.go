@@ -614,3 +614,182 @@ func TestFilterByPatternWithParents_DeepNesting(t *testing.T) {
 		}
 	}
 }
+
+func TestFilterByDepth_DepthZero(t *testing.T) {
+	t.Parallel()
+
+	entries := []*TagEntry{
+		{Name: "H1 Section", Level: 1, Line: 1, End: 100},
+		{Name: "H2 Section", Level: 2, Line: 5, End: 50},
+		{Name: "H3 Section", Level: 3, Line: 10, End: 40},
+		{Name: "H4 Section", Level: 4, Line: 15, End: 30},
+	}
+
+	// depth=0 should return all entries (unlimited)
+	result := FilterByDepth(entries, 0)
+
+	if len(result) != len(entries) {
+		t.Errorf(
+			"FilterByDepth(0) count = %d, want %d (unlimited)",
+			len(result),
+			len(entries),
+		)
+	}
+}
+
+func TestFilterByDepth_DepthOne(t *testing.T) {
+	t.Parallel()
+
+	entries := []*TagEntry{
+		{Name: "Chapter 1", Level: 1, Line: 1, End: 100},
+		{Name: "Section 1.1", Level: 2, Line: 5, End: 50},
+		{Name: "Subsection 1.1.1", Level: 3, Line: 10, End: 40},
+		{Name: "Chapter 2", Level: 1, Line: 101, End: 200},
+	}
+
+	// depth=1 should return only H1 sections
+	result := FilterByDepth(entries, 1)
+
+	expectedCount := 2
+	if len(result) != expectedCount {
+		t.Fatalf(
+			"FilterByDepth(1) count = %d, want %d",
+			len(result),
+			expectedCount,
+		)
+	}
+
+	// Verify only H1 sections returned
+	expectedNames := []string{"Chapter 1", "Chapter 2"}
+	for i, entry := range result {
+		if entry.Name != expectedNames[i] {
+			t.Errorf(
+				"Result[%d] name = %s, want %s",
+				i,
+				entry.Name,
+				expectedNames[i],
+			)
+		}
+		if entry.Level != 1 {
+			t.Errorf("Result[%d] level = %d, want 1", i, entry.Level)
+		}
+	}
+}
+
+func TestFilterByDepth_DepthTwo(t *testing.T) {
+	t.Parallel()
+
+	entries := []*TagEntry{
+		{Name: "Chapter 1", Level: 1, Line: 1, End: 100},
+		{Name: "Section 1.1", Level: 2, Line: 5, End: 50},
+		{Name: "Subsection 1.1.1", Level: 3, Line: 10, End: 40},
+		{Name: "Subsubsection 1.1.1.1", Level: 4, Line: 15, End: 30},
+		{Name: "Section 1.2", Level: 2, Line: 55, End: 95},
+	}
+
+	// depth=2 should return H1 and H2 sections
+	result := FilterByDepth(entries, 2)
+
+	expectedCount := 3 // Chapter 1, Section 1.1, Section 1.2
+	if len(result) != expectedCount {
+		t.Fatalf(
+			"FilterByDepth(2) count = %d, want %d",
+			len(result),
+			expectedCount,
+		)
+	}
+
+	// Verify all results are level 1 or 2
+	for i, entry := range result {
+		if entry.Level > 2 {
+			t.Errorf(
+				"Result[%d] level = %d, should be <= 2",
+				i,
+				entry.Level,
+			)
+		}
+	}
+
+	// Verify H3 and H4 sections are excluded
+	for _, entry := range result {
+		if entry.Name == "Subsection 1.1.1" ||
+			entry.Name == "Subsubsection 1.1.1.1" {
+			t.Errorf(
+				"Result should not include %s (level > 2)",
+				entry.Name,
+			)
+		}
+	}
+}
+
+func TestFilterByDepth_DepthThree(t *testing.T) {
+	t.Parallel()
+
+	entries := []*TagEntry{
+		{Name: "Chapter 1", Level: 1, Line: 1, End: 100},
+		{Name: "Section 1.1", Level: 2, Line: 5, End: 50},
+		{Name: "Subsection 1.1.1", Level: 3, Line: 10, End: 40},
+		{Name: "Subsubsection 1.1.1.1", Level: 4, Line: 15, End: 30},
+	}
+
+	// depth=3 should exclude only H4
+	result := FilterByDepth(entries, 3)
+
+	expectedCount := 3 // All except H4
+	if len(result) != expectedCount {
+		t.Fatalf(
+			"FilterByDepth(3) count = %d, want %d",
+			len(result),
+			expectedCount,
+		)
+	}
+
+	// Verify H4 is excluded
+	for _, entry := range result {
+		if entry.Level > 3 {
+			t.Errorf(
+				"Result should not include level > 3, got %s (level %d)",
+				entry.Name,
+				entry.Level,
+			)
+		}
+		if entry.Name == "Subsubsection 1.1.1.1" {
+			t.Error("Result should not include H4 section")
+		}
+	}
+}
+
+func TestFilterByDepth_EmptyEntries(t *testing.T) {
+	t.Parallel()
+
+	entries := []*TagEntry{}
+
+	result := FilterByDepth(entries, 2)
+
+	if len(result) != 0 {
+		t.Errorf(
+			"FilterByDepth([], 2) count = %d, want 0",
+			len(result),
+		)
+	}
+}
+
+func TestFilterByDepth_NegativeDepth(t *testing.T) {
+	t.Parallel()
+
+	entries := []*TagEntry{
+		{Name: "Chapter 1", Level: 1, Line: 1, End: 100},
+		{Name: "Section 1.1", Level: 2, Line: 5, End: 50},
+	}
+
+	// Negative depth should return all entries (unlimited)
+	result := FilterByDepth(entries, -1)
+
+	if len(result) != len(entries) {
+		t.Errorf(
+			"FilterByDepth(-1) count = %d, want %d (unlimited)",
+			len(result),
+			len(entries),
+		)
+	}
+}
