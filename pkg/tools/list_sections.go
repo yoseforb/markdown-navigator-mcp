@@ -12,7 +12,6 @@ type MarkdownListSectionsArgs struct {
 	FilePath     string `json:"file_path"               jsonschema:"required,description=Path to markdown file"`
 	HeadingLevel string `json:"heading_level,omitempty" jsonschema:"description=Filter by level (H1, H2, H3, H4)"`
 	Pattern      string `json:"pattern,omitempty"       jsonschema:"description=Search pattern (fuzzy match)"`
-	TagsFile     string `json:"tags_file,omitempty"     jsonschema:"description=Path to ctags file (default: tags)"`
 }
 
 // SectionInfo represents a single section in the list.
@@ -34,16 +33,11 @@ func RegisterMarkdownListSections(srv server.Server) {
 		"markdown_list_sections",
 		"List all top-level sections (or sections matching a pattern)",
 		func(_ *server.Context, args MarkdownListSectionsArgs) (interface{}, error) {
-			// Default tags file
-			tagsFile := args.TagsFile
-			if tagsFile == "" {
-				tagsFile = DefaultTagsFile
-			}
-
-			// Parse tags file
-			entries, err := ctags.ParseTagsFile(tagsFile, args.FilePath)
+			// Get tags from cache
+			cache := ctags.GetGlobalCache()
+			entries, err := cache.GetTags(args.FilePath)
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse tags file: %w", err)
+				return nil, fmt.Errorf("failed to get tags: %w", err)
 			}
 
 			if len(entries) == 0 {

@@ -14,7 +14,6 @@ import (
 type MarkdownReadSectionArgs struct {
 	FilePath           string `json:"file_path"                     jsonschema:"required,description=Path to markdown file"`
 	SectionQuery       string `json:"section_query"                 jsonschema:"required,description=Section name or search query"`
-	TagsFile           string `json:"tags_file,omitempty"           jsonschema:"description=Path to ctags file (default: tags)"`
 	IncludeSubsections bool   `json:"include_subsections,omitempty" jsonschema:"description=Include child sections (default: true)"`
 }
 
@@ -33,18 +32,13 @@ func RegisterMarkdownReadSection(srv server.Server) {
 		"markdown_read_section",
 		"Read a specific section's content",
 		func(_ *server.Context, args MarkdownReadSectionArgs) (interface{}, error) {
-			// Default tags file
-			tagsFile := args.TagsFile
-			if tagsFile == "" {
-				tagsFile = DefaultTagsFile
-			}
-
 			// Note: IncludeSubsections is available in args if needed for future functionality
 
-			// Parse tags file
-			entries, err := ctags.ParseTagsFile(tagsFile, args.FilePath)
+			// Get tags from cache
+			cache := ctags.GetGlobalCache()
+			entries, err := cache.GetTags(args.FilePath)
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse tags file: %w", err)
+				return nil, fmt.Errorf("failed to get tags: %w", err)
 			}
 
 			if len(entries) == 0 {

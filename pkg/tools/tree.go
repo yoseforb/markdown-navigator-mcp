@@ -9,8 +9,7 @@ import (
 
 // MarkdownTreeArgs defines the input arguments for the markdown_tree tool.
 type MarkdownTreeArgs struct {
-	FilePath string `json:"file_path"           jsonschema:"required,description=Path to markdown file"`
-	TagsFile string `json:"tags_file,omitempty" jsonschema:"description=Path to ctags file (default: tags)"`
+	FilePath string `json:"file_path" jsonschema:"required,description=Path to markdown file"`
 }
 
 // MarkdownTreeResponse defines the response structure.
@@ -24,16 +23,11 @@ func RegisterMarkdownTree(srv server.Server) {
 		"markdown_tree",
 		"Display hierarchical document structure (vim-vista style)",
 		func(_ *server.Context, args MarkdownTreeArgs) (interface{}, error) {
-			// Default tags file
-			tagsFile := args.TagsFile
-			if tagsFile == "" {
-				tagsFile = DefaultTagsFile
-			}
-
-			// Parse tags file
-			entries, err := ctags.ParseTagsFile(tagsFile, args.FilePath)
+			// Get tags from cache
+			cache := ctags.GetGlobalCache()
+			entries, err := cache.GetTags(args.FilePath)
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse tags file: %w", err)
+				return nil, fmt.Errorf("failed to get tags: %w", err)
 			}
 
 			if len(entries) == 0 {
