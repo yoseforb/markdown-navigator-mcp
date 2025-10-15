@@ -9,16 +9,17 @@ import (
 
 // MarkdownListSectionsArgs defines the input arguments.
 type MarkdownListSectionsArgs struct {
-	FilePath     string `json:"file_path"               jsonschema:"required,description=Path to markdown file"`
-	HeadingLevel string `json:"heading_level,omitempty" jsonschema:"description=Filter by level (H1, H2, H3, H4)"`
-	Pattern      string `json:"pattern,omitempty"       jsonschema:"description=Search pattern (fuzzy match)"`
+	FilePath     string  `json:"file_path"               jsonschema:"required,description=Path to markdown file"`
+	HeadingLevel *string `json:"heading_level,omitempty" jsonschema:"description=Filter by level (H1, H2, H3, H4)"`
+	Pattern      *string `json:"pattern,omitempty"       jsonschema:"description=Search pattern (fuzzy match)"`
 }
 
 // SectionInfo represents a single section in the list.
 type SectionInfo struct {
-	Name  string `json:"name"`
-	Line  int    `json:"line"`
-	Level string `json:"level"`
+	Name      string `json:"name"`
+	StartLine int    `json:"start_line"`
+	EndLine   int    `json:"end_line"`
+	Level     string `json:"level"`
 }
 
 // MarkdownListSectionsResponse defines the response structure.
@@ -46,9 +47,9 @@ func RegisterMarkdownListSections(srv server.Server) {
 
 			// Filter by heading level if specified
 			filteredEntries := entries
-			if args.HeadingLevel != "" {
+			if args.HeadingLevel != nil && *args.HeadingLevel != "" {
 				var level int
-				switch args.HeadingLevel {
+				switch *args.HeadingLevel {
 				case "H1":
 					level = 1
 				case "H2":
@@ -61,17 +62,17 @@ func RegisterMarkdownListSections(srv server.Server) {
 					return nil, fmt.Errorf(
 						"%w: %s (must be H1, H2, H3, or H4)",
 						ErrInvalidLevel,
-						args.HeadingLevel,
+						*args.HeadingLevel,
 					)
 				}
 				filteredEntries = ctags.FilterByLevel(filteredEntries, level)
 			}
 
 			// Filter by pattern if specified
-			if args.Pattern != "" {
+			if args.Pattern != nil && *args.Pattern != "" {
 				filteredEntries = ctags.FilterByPattern(
 					filteredEntries,
-					args.Pattern,
+					*args.Pattern,
 				)
 			}
 
@@ -79,9 +80,10 @@ func RegisterMarkdownListSections(srv server.Server) {
 			sections := make([]SectionInfo, 0, len(filteredEntries))
 			for _, entry := range filteredEntries {
 				sections = append(sections, SectionInfo{
-					Name:  entry.Name,
-					Line:  entry.Line,
-					Level: fmt.Sprintf("H%d", entry.Level),
+					Name:      entry.Name,
+					StartLine: entry.Line,
+					EndLine:   entry.End,
+					Level:     fmt.Sprintf("H%d", entry.Level),
 				})
 			}
 
