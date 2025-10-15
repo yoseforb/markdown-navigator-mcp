@@ -34,8 +34,13 @@ func BuildTreeStructure(entries []*TagEntry) string {
 			treeChar = "│"
 		}
 
-		// Format line
-		lineInfo := fmt.Sprintf("H%d:%d", level, entry.Line)
+		// Format line with end line if available
+		var lineInfo string
+		if entry.End > 0 {
+			lineInfo = fmt.Sprintf("H%d:%d:%d", level, entry.Line, entry.End)
+		} else {
+			lineInfo = fmt.Sprintf("H%d:%d", level, entry.Line)
+		}
 		formatted := fmt.Sprintf(
 			"%s%s %s %s",
 			indent,

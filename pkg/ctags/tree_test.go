@@ -7,12 +7,12 @@ import (
 )
 
 func TestBuildTreeStructure(t *testing.T) {
-	tagsPath := filepath.Join("..", "..", "testdata", "tags")
-	targetFile := "sample.md"
+	targetFile := filepath.Join("..", "..", "testdata", "sample.md")
 
-	entries, err := ParseTagsFile(tagsPath, targetFile)
+	cache := GetGlobalCache()
+	entries, err := cache.GetTags(targetFile)
 	if err != nil {
-		t.Fatalf("ParseTagsFile failed: %v", err)
+		t.Fatalf("GetTags failed: %v", err)
 	}
 
 	tree := BuildTreeStructure(entries)
@@ -84,6 +84,7 @@ func TestBuildTreeStructureSingleEntry(t *testing.T) {
 			"/pattern/",
 			"section",
 			10,
+			20,
 			"",
 		),
 	}
@@ -102,14 +103,23 @@ func TestBuildTreeStructureSingleEntry(t *testing.T) {
 func TestBuildTreeStructureHierarchy(t *testing.T) {
 	// Create a simple hierarchy: H1 > H2 > H3
 	entries := []*TagEntry{
-		NewTagEntry("Chapter", "test.md", "/pattern/", "chapter", 1, ""),
-		NewTagEntry("Section", "test.md", "/pattern/", "section", 5, "Chapter"),
+		NewTagEntry("Chapter", "test.md", "/pattern/", "chapter", 1, 4, ""),
+		NewTagEntry(
+			"Section",
+			"test.md",
+			"/pattern/",
+			"section",
+			5,
+			9,
+			"Chapter",
+		),
 		NewTagEntry(
 			"Subsection",
 			"test.md",
 			"/pattern/",
 			"subsection",
 			10,
+			15,
 			"Chapter\"\"Section",
 		),
 	}
