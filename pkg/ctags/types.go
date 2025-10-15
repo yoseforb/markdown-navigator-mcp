@@ -167,3 +167,19 @@ func FilterByPatternWithParents(
 
 	return result
 }
+
+// FilterByDepth filters entries to maximum heading level depth.
+// depth=1 shows only H1, depth=2 shows H1+H2, depth=0 shows all.
+func FilterByDepth(entries []*TagEntry, depth int) []*TagEntry {
+	if depth <= 0 {
+		return entries
+	}
+
+	var filtered []*TagEntry
+	for _, entry := range entries {
+		if entry.Level <= depth {
+			filtered = append(filtered, entry)
+		}
+	}
+	return filtered
+}
