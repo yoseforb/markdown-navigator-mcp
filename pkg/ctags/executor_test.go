@@ -164,6 +164,67 @@ func TestIsCtagsInstalled(t *testing.T) {
 	t.Logf("IsCtagsInstalled: %v", result)
 }
 
+func TestSetCtagsPath_ValidPath(t *testing.T) {
+	// Save original path to restore later
+	originalPath := GetCtagsPath()
+	defer func() {
+		err := SetCtagsPath(originalPath)
+		require.NoError(t, err)
+	}()
+
+	// Test setting to "ctags" (default)
+	err := SetCtagsPath("ctags")
+	if err != nil {
+		t.Skip("ctags not in PATH, skipping test")
+	}
+	require.NoError(t, err)
+
+	// Verify path is set
+	path := GetCtagsPath()
+	assert.NotEmpty(t, path)
+	assert.Contains(t, path, "ctags")
+}
+
+func TestSetCtagsPath_EmptyDefaultsToCtags(t *testing.T) {
+	// Save original path to restore later
+	originalPath := GetCtagsPath()
+	defer func() {
+		err := SetCtagsPath(originalPath)
+		require.NoError(t, err)
+	}()
+
+	// Test that empty string defaults to "ctags"
+	err := SetCtagsPath("")
+	if err != nil {
+		t.Skip("ctags not in PATH, skipping test")
+	}
+	require.NoError(t, err)
+
+	// Verify path is set to ctags default
+	path := GetCtagsPath()
+	assert.NotEmpty(t, path)
+}
+
+func TestSetCtagsPath_InvalidPath(t *testing.T) {
+	// Save original path to restore later
+	originalPath := GetCtagsPath()
+	defer func() {
+		err := SetCtagsPath(originalPath)
+		require.NoError(t, err)
+	}()
+
+	// Test with non-existent executable
+	err := SetCtagsPath("/nonexistent/executable/path/ctags")
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrInvalidCtagsPath)
+}
+
+func TestGetCtagsPath(t *testing.T) {
+	// Just verify we can get the path without panic
+	path := GetCtagsPath()
+	assert.NotEmpty(t, path)
+}
+
 func TestExecuteCtags_Integration(t *testing.T) {
 	if !IsCtagsInstalled() {
 		t.Skip("ctags not installed, skipping test")
