@@ -71,7 +71,16 @@ func GetCtagsPath() string {
 //
 // Returns the raw JSON output suitable for parsing with ParseJSONTags.
 // Errors include: ErrFileNotFound, ErrCtagsNotFound, ErrCtagsTimeout, ErrCtagsExecution.
-func ExecuteCtags(filePath string) ([]byte, error) {
+// The context allows cancellation from the caller for graceful shutdown.
+func ExecuteCtags(
+	ctx context.Context,
+	filePath string,
+) ([]byte, error) {
+	// Check context before starting
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context error before execution: %w", err)
+	}
+
 	// Check if file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("%w: %s", ErrFileNotFound, filePath)
@@ -88,16 +97,16 @@ func ExecuteCtags(filePath string) ([]byte, error) {
 		)
 	}
 
-	// Create context with timeout
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
+	// Create context with timeout based on parent context
+	timeoutCtx, cancel := context.WithTimeout(
+		ctx,
 		CtagsExecutionTimeout,
 	)
 	defer cancel()
 
 	// Build ctags command
 	cmd := exec.CommandContext(
-		ctx,
+		timeoutCtx,
 		ctagsPath,
 		"--output-format=json", // JSON output
 		"--fields=+KnSe",       // Include kind, line number, scope, end line
@@ -109,14 +118,19 @@ func ExecuteCtags(filePath string) ([]byte, error) {
 	// Execute command
 	output, err := cmd.Output()
 	if err != nil {
-		// Check for timeout
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		// Check for timeout or cancellation
+		if errors.Is(timeoutCtx.Err(), context.DeadlineExceeded) {
 			return nil, fmt.Errorf(
 				"%w: exceeded %v for file %s",
 				ErrCtagsTimeout,
 				CtagsExecutionTimeout,
 				filePath,
 			)
+		}
+
+		// Check for context cancellation (graceful shutdown)
+		if errors.Is(timeoutCtx.Err(), context.Canceled) {
+			return nil, fmt.Errorf("ctags execution canceled: %w", err)
 		}
 
 		// Check for execution error

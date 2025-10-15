@@ -1,7 +1,9 @@
 package ctags
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -55,7 +57,16 @@ func GetGlobalCache() *CacheManager {
 // GetTags retrieves tags for a file, using cache if available and valid.
 // Cache validation is based on file modification time (mtime).
 // Concurrent requests for the same file are serialized to prevent duplicate work.
-func (cm *CacheManager) GetTags(filePath string) ([]*TagEntry, error) {
+// The context allows cancellation for graceful shutdown.
+func (cm *CacheManager) GetTags(
+	ctx context.Context,
+	filePath string,
+) ([]*TagEntry, error) {
+	// Check context before starting
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context error before cache operation: %w", err)
+	}
+
 	// Get file modification time
 	stat, err := os.Stat(filePath)
 	if err != nil {
@@ -110,7 +121,12 @@ func (cm *CacheManager) GetTags(filePath string) ([]*TagEntry, error) {
 	// Execute ctags (only one goroutine reaches here per file)
 	cm.misses.Add(1)
 
-	jsonData, err := ExecuteCtags(filePath)
+	// Check context before expensive operation
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context error before ctags execution: %w", err)
+	}
+
+	jsonData, err := ExecuteCtags(ctx, filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute ctags: %w", err)
 	}
@@ -164,4 +180,30 @@ func (cm *CacheManager) Size() int {
 	cm.mu.RLock()
 	defer cm.mu.RUnlock()
 	return len(cm.cache)
+}
+
+// Shutdown logs cache statistics and clears all entries.
+// This should be called during graceful shutdown to release memory
+// and provide visibility into cache performance.
+func (cm *CacheManager) Shutdown(logger *slog.Logger) {
+	hits, misses := cm.Stats()
+	size := cm.Size()
+
+	total := hits + misses
+	hitRate := "N/A"
+	if total > 0 {
+		hitRate = fmt.Sprintf(
+			"%.2f%%",
+			float64(hits)/float64(total)*100,
+		)
+	}
+
+	logger.Info("Cache shutdown statistics",
+		"hits", hits,
+		"misses", misses,
+		"size", size,
+		"hit_rate", hitRate,
+	)
+
+	cm.Clear()
 }
