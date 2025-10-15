@@ -7,10 +7,11 @@ An MCP (Model Context Protocol) server that provides efficient navigation of lar
 - **Zero-configuration setup**: No manual ctags generation required - automatic on-demand execution
 - **Intelligent caching**: Mtime-based cache for instant responses on repeated queries
 - **Always fresh data**: Automatic cache invalidation when files change
-- **markdown_tree**: Display hierarchical document structure (vim-vista style)
+- **Graceful shutdown**: Signal handling (SIGINT/SIGTERM) with cache statistics logging
+- **markdown_tree**: Display hierarchical document structure in JSON or ASCII format with depth control (default: 2 levels)
 - **markdown_section_bounds**: Find line number boundaries for specific sections
 - **markdown_read_section**: Read a specific section's content
-- **markdown_list_sections**: List all sections matching filters (level, pattern)
+- **markdown_list_sections**: List all sections with line boundaries matching filters (level, pattern)
 
 ## Prerequisites
 
@@ -130,28 +131,73 @@ Or for custom ctags installation:
 
 ### markdown_tree
 
-Display hierarchical document structure.
+Display hierarchical document structure in JSON or ASCII format.
 
 **Parameters:**
 - `file_path` (required): Path to markdown file
+- `format` (optional): Output format - `"json"` (default) or `"ascii"`
+- `pattern` (optional): Filter to sections matching pattern (fuzzy match)
+- `max_depth` (optional): Maximum depth to display (default: 2, use 0 for unlimited)
 
-**Example:**
+**Example (ASCII format):**
 ```json
 {
-  "file_path": "docs/planning.md"
+  "file_path": "docs/planning.md",
+  "format": "ascii"
 }
 ```
 
-**Response:**
+**Response (ASCII):**
+```json
+{
+  "format": "ascii",
+  "tree_lines": [
+    "planning.md",
+    "",
+    "└ Planning Document H1:1",
+    "  │ Overview H2:5",
+    "  │ Task 1: Authentication H2:50",
+    "    │ Requirements H3:52",
+    "    │ Implementation H3:75",
+    "  │ Task 2: Database Schema H2:150"
+  ]
+}
 ```
-planning.md
 
-└ Planning Document H1:1
-  │ Overview H2:5
-  │ Task 1: Authentication H2:50
-    │ Requirements H3:52
-    │ Implementation H3:75
-  │ Task 2: Database Schema H2:150
+**Example (JSON format with filtering):**
+```json
+{
+  "file_path": "docs/planning.md",
+  "format": "json",
+  "pattern": "Task",
+  "max_depth": 3
+}
+```
+
+**Response (JSON):**
+```json
+{
+  "format": "json",
+  "tree_json": {
+    "name": "planning.md",
+    "children": [
+      {
+        "name": "Task 1: Authentication",
+        "line": 50,
+        "level": 2,
+        "children": [
+          {"name": "Requirements", "line": 52, "level": 3},
+          {"name": "Implementation", "line": 75, "level": 3}
+        ]
+      },
+      {
+        "name": "Task 2: Database Schema",
+        "line": 150,
+        "level": 2
+      }
+    ]
+  }
+}
 ```
 
 ### markdown_section_bounds
@@ -215,7 +261,7 @@ List all sections matching filters.
 
 **Parameters:**
 - `file_path` (required): Path to markdown file
-- `heading_level` (optional): Filter by level (H1, H2, H3, H4)
+- `heading_level` (optional): Filter by level (H1, H2, H3, H4, or ALL)
 - `pattern` (optional): Search pattern (fuzzy match)
 
 **Example:**
@@ -231,9 +277,24 @@ List all sections matching filters.
 ```json
 {
   "sections": [
-    {"name": "Task 1: Authentication", "line": 50, "level": "H2"},
-    {"name": "Task 2: Database Schema", "line": 150, "level": "H2"},
-    {"name": "Task 3: API Endpoints", "line": 300, "level": "H2"}
+    {
+      "name": "Task 1: Authentication",
+      "start_line": 50,
+      "end_line": 149,
+      "level": "H2"
+    },
+    {
+      "name": "Task 2: Database Schema",
+      "start_line": 150,
+      "end_line": 299,
+      "level": "H2"
+    },
+    {
+      "name": "Task 3: API Endpoints",
+      "start_line": 300,
+      "end_line": 450,
+      "level": "H2"
+    }
   ],
   "count": 3
 }
@@ -247,7 +308,7 @@ List all sections matching filters.
 User: "Analyze Task 4 from the route refactoring plan"
 
 Claude:
-1. Uses markdown_tree to see document structure
+1. Uses markdown_tree with pattern="Task" and max_depth=2 to see all tasks
 2. Uses markdown_section_bounds to find Task 4 location
 3. Uses markdown_read_section to read just Task 4
 4. Provides comprehensive analysis using only 25% of document
@@ -269,7 +330,7 @@ Claude:
 User: "Implement Task 4"
 
 Claude:
-1. markdown_tree - Get overview
+1. markdown_tree format="ascii" max_depth=2 - Get quick overview
 2. markdown_read_section "Executive Summary" - Context
 3. markdown_read_section "Task 4" - Implementation details
 4. markdown_read_section "Testing Strategy" - Validation
