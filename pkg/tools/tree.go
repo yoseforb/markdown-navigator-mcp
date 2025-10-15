@@ -12,7 +12,7 @@ type MarkdownTreeArgs struct {
 	FilePath string  `json:"file_path"           jsonschema:"required,description=Path to markdown file"`
 	Format   *string `json:"format,omitempty"    jsonschema:"description=Output format: json (default) or ascii"`
 	Pattern  *string `json:"pattern,omitempty"   jsonschema:"description=Filter to sections matching pattern"`
-	MaxDepth *int    `json:"max_depth,omitempty" jsonschema:"description=Maximum depth to display (0 = unlimited)"`
+	MaxDepth *int    `json:"max_depth,omitempty" jsonschema:"description=Maximum depth to display (default: 2, 0 = unlimited)"`
 }
 
 // MarkdownTreeResponse defines the response structure.
@@ -47,9 +47,13 @@ func RegisterMarkdownTree(srv server.Server) {
 				)
 			}
 
-			// Filter by depth if provided
-			if args.MaxDepth != nil && *args.MaxDepth > 0 {
-				entries = ctags.FilterByDepth(entries, *args.MaxDepth)
+			// Filter by depth (default: 2, use 0 for unlimited)
+			depth := 2
+			if args.MaxDepth != nil {
+				depth = *args.MaxDepth
+			}
+			if depth > 0 {
+				entries = ctags.FilterByDepth(entries, depth)
 			}
 
 			// Default format to json
