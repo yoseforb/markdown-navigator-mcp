@@ -470,3 +470,97 @@ func TestMarkdownListSections_CaseInsensitivePattern(t *testing.T) {
 		}
 	}
 }
+
+func TestMarkdownListSections_HeadingLevelALL(t *testing.T) {
+	t.Parallel()
+
+	targetFile := filepath.Join("..", "..", "testdata", "sample.md")
+
+	// Get tags from cache
+	cache := ctags.GetGlobalCache()
+	entries, err := cache.GetTags(targetFile)
+	if err != nil {
+		t.Fatalf("GetTags failed: %v", err)
+	}
+
+	// When heading_level is "ALL", should return all levels
+	// (no level filtering applied)
+	allSections := make([]SectionInfo, 0, len(entries))
+	for _, entry := range entries {
+		allSections = append(allSections, SectionInfo{
+			Name:      entry.Name,
+			StartLine: entry.Line,
+			EndLine:   entry.End,
+			Level:     "H" + string(rune('0'+entry.Level)),
+		})
+	}
+
+	// Validate we have sections at multiple levels
+	levelCounts := make(map[string]int)
+	for _, section := range allSections {
+		levelCounts[section.Level]++
+	}
+
+	if len(levelCounts) < 2 {
+		t.Error(
+			"Expected sections at multiple heading levels when using ALL",
+		)
+	}
+
+	// Should have H1, H2, H3, and H4 in sample.md
+	expectedLevels := []string{"H1", "H2", "H3", "H4"}
+	for _, level := range expectedLevels {
+		if levelCounts[level] == 0 {
+			t.Errorf(
+				"Expected at least one section at level %s when using ALL",
+				level,
+			)
+		}
+	}
+}
+
+func TestMarkdownListSections_ALLWithPattern(t *testing.T) {
+	t.Parallel()
+
+	targetFile := filepath.Join("..", "..", "testdata", "sample.md")
+
+	// Get tags from cache
+	cache := ctags.GetGlobalCache()
+	entries, err := cache.GetTags(targetFile)
+	if err != nil {
+		t.Fatalf("GetTags failed: %v", err)
+	}
+
+	// Filter by pattern only (ALL means no level filtering)
+	filteredEntries := ctags.FilterByPattern(entries, "Section")
+
+	// Convert to response format
+	sections := make([]SectionInfo, 0, len(filteredEntries))
+	for _, entry := range filteredEntries {
+		sections = append(sections, SectionInfo{
+			Name:      entry.Name,
+			StartLine: entry.Line,
+			EndLine:   entry.End,
+			Level:     "H" + string(rune('0'+entry.Level)),
+		})
+	}
+
+	// Validate we have sections at multiple levels matching "Section"
+	if len(sections) == 0 {
+		t.Fatal(
+			"Expected at least one section matching 'Section' with ALL",
+		)
+	}
+
+	// Should have sections at different levels
+	levelCounts := make(map[string]int)
+	for _, section := range sections {
+		levelCounts[section.Level]++
+	}
+
+	if len(levelCounts) < 2 {
+		t.Error(
+			"Expected sections at multiple levels when filtering with ALL",
+		)
+	}
+}
