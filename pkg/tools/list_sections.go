@@ -10,7 +10,7 @@ import (
 // MarkdownListSectionsArgs defines the input arguments.
 type MarkdownListSectionsArgs struct {
 	FilePath     string  `json:"file_path"               jsonschema:"required,description=Path to markdown file"`
-	HeadingLevel *string `json:"heading_level,omitempty" jsonschema:"description=Filter by level (H1, H2, H3, H4)"`
+	HeadingLevel *string `json:"heading_level,omitempty" jsonschema:"description=Filter by level (H1, H2, H3, H4, or ALL)"`
 	Pattern      *string `json:"pattern,omitempty"       jsonschema:"description=Search pattern (fuzzy match)"`
 }
 
@@ -45,9 +45,10 @@ func RegisterMarkdownListSections(srv server.Server) {
 				return nil, fmt.Errorf("%w for %s", ErrNoEntries, args.FilePath)
 			}
 
-			// Filter by heading level if specified
+			// Filter by heading level if specified (ALL means no filtering)
 			filteredEntries := entries
-			if args.HeadingLevel != nil && *args.HeadingLevel != "" {
+			if args.HeadingLevel != nil && *args.HeadingLevel != "" &&
+				*args.HeadingLevel != "ALL" {
 				var level int
 				switch *args.HeadingLevel {
 				case "H1":
@@ -60,7 +61,7 @@ func RegisterMarkdownListSections(srv server.Server) {
 					level = 4
 				default:
 					return nil, fmt.Errorf(
-						"%w: %s (must be H1, H2, H3, or H4)",
+						"%w: %s (must be H1, H2, H3, H4, or ALL)",
 						ErrInvalidLevel,
 						*args.HeadingLevel,
 					)
