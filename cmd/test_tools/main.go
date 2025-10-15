@@ -1,10 +1,14 @@
+// Package main provides a test tool for manual testing of markdown navigation.
+// This is a development/testing utility, not production code.
+//
+//nolint:cyclop,gocognit,nestif,sloglint,gocritic,funlen // test tool complexity
 package main
 
 import (
 	"bufio"
 	"flag"
-	"fmt"
 	"log"
+	"log/slog"
 	"os"
 
 	"github.com/yoseforb/markdown-nav-mcp/pkg/ctags"
@@ -12,77 +16,63 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: go run test_tools.go <markdown-file> [tags-file]")
-		fmt.Println(
+		slog.Info(
+			"Usage: go run test_tools.go <markdown-file>",
+		)
+		slog.Info(
 			"Example: go run test_tools.go mcp-markdown-nav-server-prompt.md",
 		)
 		os.Exit(1)
 	}
 
 	markdownFile := os.Args[1]
-	tagsFile := "tags"
-	if len(os.Args) > 2 {
-		tagsFile = os.Args[2]
-	}
 
 	flag.Parse()
 
-	fmt.Println("=== Testing Markdown Navigation Tools ===")
-	fmt.Printf("Markdown file: %s\n", markdownFile)
-	fmt.Printf("Tags file: %s\n\n", tagsFile)
+	slog.Info("=== Testing Markdown Navigation Tools ===")
+	slog.Info("Markdown file", "file", markdownFile)
 
-	// Test 1: Parse Tags File
-	fmt.Println("1. Testing ParseTagsFile...")
-	entries, err := ctags.ParseTagsFile(tagsFile, markdownFile)
+	// Test 1: Get Tags from Cache (replaces ParseTagsFile)
+	slog.Info("1. Testing GetTags from cache...")
+	cache := ctags.GetGlobalCache()
+	entries, err := cache.GetTags(markdownFile)
 	if err != nil {
-		log.Fatalf("❌ ParseTagsFile failed: %v", err)
+		log.Fatalf("GetTags failed: %v", err)
 	}
-	fmt.Printf("✓ Found %d entries\n\n", len(entries))
+	slog.Info("Found entries", "count", len(entries))
 
 	if len(entries) == 0 {
-		log.Fatal("❌ No entries found - cannot continue tests")
+		log.Fatal("No entries found - cannot continue tests")
 	}
 
 	// Test 2: Build Tree Structure
-	fmt.Println("2. Testing BuildTreeStructure...")
+	slog.Info("2. Testing BuildTreeStructure...")
 	tree := ctags.BuildTreeStructure(entries)
 	if tree == "" {
-		log.Fatal("❌ BuildTreeStructure returned empty tree")
+		log.Fatal("BuildTreeStructure returned empty tree")
 	}
-	fmt.Println("✓ Tree structure built successfully")
-	fmt.Println("Tree preview:")
-	lines := 0
-	for _, line := range tree {
-		if line == '\n' {
-			lines++
-			if lines > 10 {
-				fmt.Println("  ... (truncated)")
-				break
-			}
-		}
-		if lines <= 10 {
-			fmt.Printf("  %c", line)
-		}
-	}
-	fmt.Println()
+	slog.Info("Tree structure built successfully")
+	slog.Info("Tree preview: ")
+
+	slog.Info(tree)
 
 	// Test 3: Filter By Level (H2)
-	fmt.Println("\n3. Testing FilterByLevel (H2)...")
+	slog.Info("3. Testing FilterByLevel (H2)...")
 	h2Entries := ctags.FilterByLevel(entries, 2)
-	fmt.Printf("✓ Found %d H2 sections\n", len(h2Entries))
+	slog.Info("Found H2 sections", "count", len(h2Entries))
 	if len(h2Entries) > 0 {
-		fmt.Println("First H2 sections:")
+		slog.Info("First H2 sections:")
 		for i, entry := range h2Entries {
 			if i >= 3 {
-				fmt.Println("  ...")
+				slog.Info("  ...")
 				break
 			}
-			fmt.Printf("  - %s (line %d)\n", entry.Name, entry.Line)
+			slog.Info("", "name", entry.Name, "line", entry.Line)
 		}
 	}
 
 	// Test 4: Filter By Pattern
-	fmt.Println("\n4. Testing FilterByPattern...")
+	slog.Info("4. Testing FilterByPattern...")
 	if len(h2Entries) > 0 {
 		firstSection := h2Entries[0].Name
 		// Use just first word for pattern matching
@@ -91,11 +81,17 @@ func main() {
 			pattern = pattern[:10]
 		}
 		filtered := ctags.FilterByPattern(entries, pattern)
-		fmt.Printf("✓ Pattern '%s' found %d matches\n", pattern, len(filtered))
+		slog.Info(
+			"Pattern matches found",
+			"pattern",
+			pattern,
+			"matches",
+			len(filtered),
+		)
 	}
 
 	// Test 5: Find Section Bounds
-	fmt.Println("\n5. Testing FindSectionBounds...")
+	slog.Info("5. Testing FindSectionBounds...")
 	if len(h2Entries) > 0 {
 		firstSection := h2Entries[0].Name
 		startLine, endLine, sectionName, found := ctags.FindSectionBounds(
@@ -103,20 +99,20 @@ func main() {
 			firstSection,
 		)
 		if !found {
-			log.Fatalf("❌ Failed to find section: %s", firstSection)
+			log.Fatalf("Failed to find section: %s", firstSection)
 		}
-		fmt.Printf("✓ Found section: %s\n", sectionName)
-		fmt.Printf("  Start line: %d\n", startLine)
+		slog.Info("Found section", "name", sectionName)
+		slog.Info("Start line", "line", startLine)
 		if endLine > 0 {
-			fmt.Printf("  End line: %d\n", endLine)
-			fmt.Printf("  Total lines: %d\n", endLine-startLine+1)
+			slog.Info("End line", "line", endLine)
+			slog.Info("Total lines", "count", endLine-startLine+1)
 		} else {
-			fmt.Println("  End line: EOF")
+			slog.Info("End line: EOF")
 		}
 	}
 
-	// Test 6: Read File Lines (via markdown_read_section logic)
-	fmt.Println("\n6. Testing section reading...")
+	// Test 6: Read File Lines
+	slog.Info("6. Testing section reading...")
 	if len(h2Entries) > 0 {
 		firstSection := h2Entries[0].Name
 		startLine, endLine, _, found := ctags.FindSectionBounds(
@@ -126,11 +122,11 @@ func main() {
 		if found {
 			file, err := os.Open(markdownFile)
 			if err != nil {
-				log.Fatalf("❌ Failed to open file: %v", err)
+				log.Fatalf("Failed to open file: %v", err)
 			}
 			defer file.Close()
 
-			// Read lines using bufio.Scanner (like the actual implementation)
+			// Read lines using bufio.Scanner
 			var lines []string
 			scanner := bufio.NewScanner(file)
 			currentLine := 1
@@ -148,7 +144,7 @@ func main() {
 			}
 
 			if err := scanner.Err(); err != nil {
-				log.Fatalf("❌ Failed to scan file: %v", err)
+				log.Fatalf("Failed to scan file: %v", err)
 			}
 
 			content := ""
@@ -160,20 +156,17 @@ func main() {
 			}
 
 			if len(content) > 0 {
-				fmt.Printf(
-					"✓ Section content read successfully (%d lines)\n",
+				slog.Info(
+					"Section content read successfully",
+					"lines",
 					linesRead,
 				)
-				// if len(content) > 200 {
-				// fmt.Printf("  Content preview (first 200 chars): %s...\n", content[:200])
-				// } else {
-				fmt.Printf("  Content: %s\n", content)
-				// }
+				slog.Info("Content", "text", content)
 			} else {
-				fmt.Println("❌ No content read")
+				slog.Error("No content read")
 			}
 		}
 	}
 
-	fmt.Println("\n=== All Tests Passed! ===")
+	slog.Info("=== All Tests Passed! ===")
 }
