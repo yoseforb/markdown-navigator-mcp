@@ -69,3 +69,68 @@ type stackEntry struct {
 	Level int
 	Entry *TagEntry
 }
+
+// TreeNode represents a node in the hierarchical JSON tree structure.
+type TreeNode struct {
+	Name      string      `json:"name"`
+	Level     string      `json:"level"`
+	StartLine int         `json:"start_line"`
+	EndLine   int         `json:"end_line"`
+	Children  []*TreeNode `json:"children"`
+}
+
+// BuildTreeJSON builds a hierarchical JSON tree structure from tag entries.
+// Returns the root node containing all sections and their children.
+func BuildTreeJSON(entries []*TagEntry) *TreeNode {
+	if len(entries) == 0 {
+		return nil
+	}
+
+	// Create root node
+	root := &TreeNode{
+		Name:      filepath.Base(entries[0].File),
+		Level:     "H0",
+		StartLine: 0,
+		EndLine:   0,
+		Children:  []*TreeNode{},
+	}
+
+	// Stack to track parent nodes at each level
+	stack := []*TreeNode{root}
+
+	for _, entry := range entries {
+		node := &TreeNode{
+			Name:      entry.Name,
+			Level:     fmt.Sprintf("H%d", entry.Level),
+			StartLine: entry.Line,
+			EndLine:   entry.End,
+			Children:  []*TreeNode{},
+		}
+
+		// Pop stack to find correct parent (level-based)
+		for len(stack) > 1 && getLevel(stack[len(stack)-1].Level) >= entry.Level {
+			stack = stack[:len(stack)-1]
+		}
+
+		// Add as child of current parent
+		parent := stack[len(stack)-1]
+		parent.Children = append(parent.Children, node)
+
+		// Push current node for potential children
+		stack = append(stack, node)
+	}
+
+	return root
+}
+
+// getLevel extracts numeric level from "H1", "H2", etc.
+func getLevel(levelStr string) int {
+	if len(levelStr) < 2 || levelStr[0] != 'H' {
+		return 0
+	}
+
+	level := 0
+	_, _ = fmt.Sscanf(levelStr[1:], "%d", &level)
+
+	return level
+}

@@ -107,3 +107,63 @@ func SortByLine(entries []*TagEntry) {
 		return entries[i].Line < entries[j].Line
 	})
 }
+
+// FilterByPatternWithParents filters entries by pattern but preserves parent
+// sections to maintain tree hierarchy. This ensures that matching sections are
+// shown in context.
+//
+// Example: If searching for "Testing" matches "Section 2.1: Testing", the
+// result will include "Section 2" (parent) even if it doesn't match the pattern.
+func FilterByPatternWithParents(
+	entries []*TagEntry,
+	pattern string,
+) []*TagEntry {
+	if pattern == "" {
+		return entries
+	}
+
+	// First pass: identify all matching entries and their descendants
+	matchingIndices := make(map[int]bool)
+	lowerPattern := strings.ToLower(pattern)
+
+	for i, entry := range entries {
+		if strings.Contains(strings.ToLower(entry.Name), lowerPattern) {
+			matchingIndices[i] = true
+		}
+	}
+
+	if len(matchingIndices) == 0 {
+		return []*TagEntry{}
+	}
+
+	// Second pass: mark entries that should be included (matches + their parents)
+	shouldInclude := make(map[int]bool)
+
+	// Mark all matches
+	for i := range matchingIndices {
+		shouldInclude[i] = true
+	}
+
+	// For each match, mark all its parents
+	for matchIdx := range matchingIndices {
+		matchLevel := entries[matchIdx].Level
+
+		// Look backwards to find parents (entries with lower level)
+		for i := matchIdx - 1; i >= 0; i-- {
+			if entries[i].Level < matchLevel {
+				shouldInclude[i] = true
+				matchLevel = entries[i].Level // Update to find higher-level parents
+			}
+		}
+	}
+
+	// Third pass: build result from marked entries
+	var result []*TagEntry
+	for i, entry := range entries {
+		if shouldInclude[i] {
+			result = append(result, entry)
+		}
+	}
+
+	return result
+}
