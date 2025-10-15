@@ -9,19 +9,23 @@ import (
 
 // MarkdownTreeArgs defines the input arguments for the markdown_tree tool.
 type MarkdownTreeArgs struct {
-	FilePath string `json:"file_path" jsonschema:"required,description=Path to markdown file"`
+	FilePath string  `json:"file_path"         jsonschema:"required,description=Path to markdown file"`
+	Format   *string `json:"format,omitempty"  jsonschema:"description=Output format: json (default) or ascii"`
+	Pattern  *string `json:"pattern,omitempty" jsonschema:"description=Filter to sections matching pattern"`
 }
 
 // MarkdownTreeResponse defines the response structure.
 type MarkdownTreeResponse struct {
-	Tree string `json:"tree"`
+	Tree     string          `json:"tree,omitempty"`      // ASCII format (deprecated)
+	TreeJSON *ctags.TreeNode `json:"tree_json,omitempty"` // JSON format (default)
+	Format   string          `json:"format"`              // "json" or "ascii"
 }
 
 // RegisterMarkdownTree registers the markdown_tree tool with the MCP server.
 func RegisterMarkdownTree(srv server.Server) {
 	srv.Tool(
 		"markdown_tree",
-		"Display hierarchical document structure (vim-vista style)",
+		"Display hierarchical document structure (JSON or ASCII format)",
 		func(_ *server.Context, args MarkdownTreeArgs) (interface{}, error) {
 			// Get tags from cache
 			cache := ctags.GetGlobalCache()
@@ -34,10 +38,44 @@ func RegisterMarkdownTree(srv server.Server) {
 				return nil, fmt.Errorf("%w for %s", ErrNoEntries, args.FilePath)
 			}
 
-			// Build tree structure
-			tree := ctags.BuildTreeStructure(entries)
+			// Filter by pattern if provided
+			if args.Pattern != nil && *args.Pattern != "" {
+				entries = ctags.FilterByPatternWithParents(
+					entries,
+					*args.Pattern,
+				)
+			}
 
-			return MarkdownTreeResponse{Tree: tree}, nil
+			// Default format to json
+			format := "json"
+			if args.Format != nil && *args.Format != "" {
+				format = *args.Format
+			}
+
+			// Validate format
+			if format != "json" && format != "ascii" {
+				return nil, fmt.Errorf(
+					"%w: %s (must be 'json' or 'ascii')",
+					ErrInvalidFormat,
+					format,
+				)
+			}
+
+			// Build response based on format
+			response := MarkdownTreeResponse{
+				Format:   format,
+				Tree:     "",
+				TreeJSON: nil,
+			}
+
+			switch format {
+			case "json":
+				response.TreeJSON = ctags.BuildTreeJSON(entries)
+			case "ascii":
+				response.Tree = ctags.BuildTreeStructure(entries)
+			}
+
+			return response, nil
 		},
 	)
 }
