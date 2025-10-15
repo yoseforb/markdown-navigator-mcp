@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -37,9 +38,13 @@ func RegisterMarkdownTree(srv server.Server) {
 		"markdown_tree",
 		"Display hierarchical document structure (JSON or ASCII format)",
 		func(_ *server.Context, args MarkdownTreeArgs) (interface{}, error) {
-			// Get tags from cache
+			// Note: gomcp's server.Context does not provide request-level context.
+			// Application-level cancellation is handled via signal handling in main.go.
+			reqCtx := context.Background()
+
+			// Get tags from cache with context
 			cache := ctags.GetGlobalCache()
-			entries, err := cache.GetTags(args.FilePath)
+			entries, err := cache.GetTags(reqCtx, args.FilePath)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get tags: %w", err)
 			}

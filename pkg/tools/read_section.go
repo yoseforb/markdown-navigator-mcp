@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -34,9 +35,13 @@ func RegisterMarkdownReadSection(srv server.Server) {
 		func(_ *server.Context, args MarkdownReadSectionArgs) (interface{}, error) {
 			// Note: IncludeSubsections is available in args if needed for future functionality
 
-			// Get tags from cache
+			// Note: gomcp's server.Context does not provide request-level context.
+			// Application-level cancellation is handled via signal handling in main.go.
+			reqCtx := context.Background()
+
+			// Get tags from cache with context
 			cache := ctags.GetGlobalCache()
-			entries, err := cache.GetTags(args.FilePath)
+			entries, err := cache.GetTags(reqCtx, args.FilePath)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get tags: %w", err)
 			}

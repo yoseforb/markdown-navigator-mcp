@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/localrivet/gomcp/server"
@@ -34,9 +35,13 @@ func RegisterMarkdownListSections(srv server.Server) {
 		"markdown_list_sections",
 		"List all top-level sections (or sections matching a pattern)",
 		func(_ *server.Context, args MarkdownListSectionsArgs) (interface{}, error) {
-			// Get tags from cache
+			// Note: gomcp's server.Context does not provide request-level context.
+			// Application-level cancellation is handled via signal handling in main.go.
+			reqCtx := context.Background()
+
+			// Get tags from cache with context
 			cache := ctags.GetGlobalCache()
-			entries, err := cache.GetTags(args.FilePath)
+			entries, err := cache.GetTags(reqCtx, args.FilePath)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get tags: %w", err)
 			}
