@@ -223,6 +223,61 @@ if err != nil {
 }
 ```
 
+#### MCP Tool Parameter Handling
+
+**Making Parameters Optional**
+
+In gomcp (v1.7.2), **all struct fields are treated as required by default**, regardless of JSON tags. To make a parameter optional, you MUST use **pointer types**.
+
+**WRONG - These are still required:**
+```go
+type ToolArgs struct {
+    FilePath string `json:"file_path" jsonschema:"required,description=..."`
+    Pattern  string `json:"pattern,omitempty" jsonschema:"description=..."`  // STILL REQUIRED!
+}
+```
+
+**CORRECT - Optional parameters using pointers:**
+```go
+type ToolArgs struct {
+    FilePath string  `json:"file_path" jsonschema:"required,description=..."`
+    Pattern  *string `json:"pattern,omitempty" jsonschema:"description=..."`  // Optional
+}
+```
+
+**Handling Optional Parameters in Code:**
+```go
+func MyTool(ctx *server.Context, args ToolArgs) (interface{}, error) {
+    // Check if optional parameter was provided
+    if args.Pattern != nil && *args.Pattern != "" {
+        // Use the pattern
+        filteredData = filterByPattern(data, *args.Pattern)
+    }
+    // If Pattern is nil, it was not provided
+}
+```
+
+**Generated MCP Schema:**
+
+With string field:
+```json
+{
+  "required": ["file_path", "pattern"]  // Both required!
+}
+```
+
+With pointer field:
+```json
+{
+  "required": ["file_path"]  // Only file_path required
+}
+```
+
+**Rule of Thumb:**
+- Required parameter: Use value type (`string`, `int`, `bool`)
+- Optional parameter: Use pointer type (`*string`, `*int`, `*bool`)
+- Always check for `nil` before dereferencing pointers
+
 #### Testing Standards
 
 - **Table-driven tests** for multiple scenarios
