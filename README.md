@@ -229,16 +229,19 @@ Find line number boundaries for a specific section.
 
 ### markdown_read_section
 
-Read a specific section's content.
+Read a specific section's content with granular control over subsection depth.
 
 **Parameters:**
 - `file_path` (required): Path to markdown file
 - `section_query` (required): Section name or search query
-- `include_subsections` (optional): Include child sections. Default: `true` when not specified.
-  - `true`: Reads from section start to end (includes all subsections)
-  - `false`: Reads only the parent section content (stops before first child heading)
+- `depth` (optional): Maximum subsection depth to include. Default: unlimited (reads all subsections).
+  - `null` or omitted: Unlimited depth - read all subsections
+  - `0`: No subsections - only section content before first child
+  - `1`: Immediate children only (e.g., H2 + H3, skip H4)
+  - `2`: Children + grandchildren (e.g., H2 + H3 + H4, skip H5)
+  - Negative values treated as `0`
 
-**Example (include subsections - default):**
+**Example (unlimited depth - default):**
 ```json
 {
   "file_path": "docs/planning.md",
@@ -249,7 +252,7 @@ Read a specific section's content.
 **Response:**
 ```json
 {
-  "content": "## Task 1: Authentication\n\n### Requirements\n...\n\n### Implementation\n...",
+  "content": "## Task 1: Authentication\n\n### Requirements\n...\n\n#### Functional\n...\n\n### Implementation\n...",
   "section_name": "Task 1: Authentication",
   "start_line": 50,
   "end_line": 149,
@@ -257,12 +260,12 @@ Read a specific section's content.
 }
 ```
 
-**Example (exclude subsections):**
+**Example (depth=0 - section content only):**
 ```json
 {
   "file_path": "docs/planning.md",
   "section_query": "Task 1",
-  "include_subsections": false
+  "depth": 0
 }
 ```
 
@@ -276,6 +279,28 @@ Read a specific section's content.
   "lines_read": 4
 }
 ```
+
+**Example (depth=1 - include immediate children):**
+```json
+{
+  "file_path": "docs/planning.md",
+  "section_query": "Task 1",
+  "depth": 1
+}
+```
+
+**Response:**
+```json
+{
+  "content": "## Task 1: Authentication\n\n### Requirements\nThe requirements are...\n\n### Implementation\nImplementation steps...",
+  "section_name": "Task 1: Authentication",
+  "start_line": 50,
+  "end_line": 89,
+  "lines_read": 40
+}
+```
+
+**Note:** With `depth=1`, H3 subsections are included but any H4 subsections inside them are excluded.
 
 ### markdown_list_sections
 
