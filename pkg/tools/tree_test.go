@@ -501,6 +501,88 @@ func TestMarkdownTreeResponse_ExplicitUnlimitedDepth(t *testing.T) {
 	}
 }
 
+func TestMarkdownTreeResponse_TreeLines(t *testing.T) {
+	t.Parallel()
+
+	entries := createTestEntries()
+	treeString := ctags.BuildTreeStructure(entries)
+
+	// Split into lines
+	lines := splitLines(treeString)
+
+	// Verify we got multiple lines
+	if len(lines) == 0 {
+		t.Fatal("splitLines returned empty array")
+	}
+
+	// Verify first line is the filename
+	if lines[0] != "test.md" {
+		t.Errorf("First line = %q, want 'test.md'", lines[0])
+	}
+
+	// Verify we have expected sections in the lines
+	foundSections := make(map[string]bool)
+	expectedSections := []string{
+		"Test Document",
+		"Section 1: Introduction",
+		"Section 2: Implementation",
+		"Section 3: Conclusion",
+	}
+
+	for _, line := range lines {
+		for _, section := range expectedSections {
+			if containsString(line, section) {
+				foundSections[section] = true
+			}
+		}
+	}
+
+	for _, section := range expectedSections {
+		if !foundSections[section] {
+			t.Errorf("Expected section %q not found in tree lines", section)
+		}
+	}
+}
+
+func TestSplitLines_EmptyString(t *testing.T) {
+	t.Parallel()
+
+	lines := splitLines("")
+	if len(lines) != 0 {
+		t.Errorf("splitLines('') = %d lines, want 0", len(lines))
+	}
+}
+
+func TestSplitLines_SingleLine(t *testing.T) {
+	t.Parallel()
+
+	lines := splitLines("single line")
+	if len(lines) != 1 {
+		t.Fatalf("splitLines returned %d lines, want 1", len(lines))
+	}
+	if lines[0] != "single line" {
+		t.Errorf("splitLines returned %q, want 'single line'", lines[0])
+	}
+}
+
+func TestSplitLines_MultipleLines(t *testing.T) {
+	t.Parallel()
+
+	input := "line 1\nline 2\nline 3"
+	lines := splitLines(input)
+
+	if len(lines) != 3 {
+		t.Fatalf("splitLines returned %d lines, want 3", len(lines))
+	}
+
+	expected := []string{"line 1", "line 2", "line 3"}
+	for i, line := range lines {
+		if line != expected[i] {
+			t.Errorf("Line %d = %q, want %q", i, line, expected[i])
+		}
+	}
+}
+
 // Helper function to check if a string contains a substring.
 func containsString(s, substr string) bool {
 	return len(s) >= len(substr) && findSubstring(s, substr)

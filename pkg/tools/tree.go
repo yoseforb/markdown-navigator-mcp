@@ -2,6 +2,7 @@ package tools
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/localrivet/gomcp/server"
 	"github.com/yoseforb/markdown-nav-mcp/pkg/ctags"
@@ -17,9 +18,17 @@ type MarkdownTreeArgs struct {
 
 // MarkdownTreeResponse defines the response structure.
 type MarkdownTreeResponse struct {
-	Tree     string          `json:"tree,omitempty"`      // ASCII format (deprecated)
-	TreeJSON *ctags.TreeNode `json:"tree_json,omitempty"` // JSON format (default)
-	Format   string          `json:"format"`              // "json" or "ascii"
+	TreeLines []string        `json:"tree_lines,omitempty"` // ASCII format as array of lines
+	TreeJSON  *ctags.TreeNode `json:"tree_json,omitempty"`  // JSON format (default)
+	Format    string          `json:"format"`               // "json" or "ascii"
+}
+
+// splitLines splits a string into lines for better JSON readability.
+func splitLines(s string) []string {
+	if s == "" {
+		return []string{}
+	}
+	return strings.Split(s, "\n")
 }
 
 // RegisterMarkdownTree registers the markdown_tree tool with the MCP server.
@@ -73,16 +82,18 @@ func RegisterMarkdownTree(srv server.Server) {
 
 			// Build response based on format
 			response := MarkdownTreeResponse{
-				Format:   format,
-				Tree:     "",
-				TreeJSON: nil,
+				Format:    format,
+				TreeLines: nil,
+				TreeJSON:  nil,
 			}
 
 			switch format {
 			case "json":
 				response.TreeJSON = ctags.BuildTreeJSON(entries)
 			case "ascii":
-				response.Tree = ctags.BuildTreeStructure(entries)
+				treeString := ctags.BuildTreeStructure(entries)
+				// Split into lines for better readability in JSON
+				response.TreeLines = splitLines(treeString)
 			}
 
 			return response, nil
