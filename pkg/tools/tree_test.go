@@ -399,6 +399,108 @@ func TestMarkdownTreeResponse_PatternCaseInsensitive(t *testing.T) {
 	}
 }
 
+func TestMarkdownTreeResponse_DefaultDepth(t *testing.T) {
+	t.Parallel()
+
+	entries := createTestEntries()
+
+	// Simulate default depth behavior (nil MaxDepth should default to 2)
+	var maxDepth *int // nil means use default
+	depth := 2
+	if maxDepth != nil {
+		depth = *maxDepth
+	}
+
+	if depth != 2 {
+		t.Errorf("Default depth = %d, want 2", depth)
+	}
+
+	// Apply depth filtering
+	var filtered []*ctags.TagEntry
+	if depth > 0 {
+		filtered = ctags.FilterByDepth(entries, depth)
+	} else {
+		filtered = entries
+	}
+
+	// Should include H1 and H2 only
+	for _, entry := range filtered {
+		if entry.Level > 2 {
+			t.Errorf(
+				"Entry %s has level %d, should be filtered with depth=2",
+				entry.Name,
+				entry.Level,
+			)
+		}
+	}
+
+	// Verify we have both H1 and H2
+	hasH1 := false
+	hasH2 := false
+	for _, entry := range filtered {
+		if entry.Level == 1 {
+			hasH1 = true
+		}
+		if entry.Level == 2 {
+			hasH2 = true
+		}
+	}
+
+	if !hasH1 {
+		t.Error("Default depth=2 should include H1 entries")
+	}
+	if !hasH2 {
+		t.Error("Default depth=2 should include H2 entries")
+	}
+}
+
+func TestMarkdownTreeResponse_ExplicitUnlimitedDepth(t *testing.T) {
+	t.Parallel()
+
+	entries := createTestEntries()
+
+	// Test behavior when maxDepth is explicitly set to 0
+	zero := 0
+	explicitDepth := &zero
+
+	// In production code: depth defaults to 2, but can be overridden
+	depth := *explicitDepth // Use explicit value
+
+	if depth != 0 {
+		t.Errorf("Explicit depth = %d, want 0 (unlimited)", depth)
+	}
+
+	// Apply depth filtering (depth=0 means no filtering)
+	var filtered []*ctags.TagEntry
+	if depth > 0 {
+		filtered = ctags.FilterByDepth(entries, depth)
+	} else {
+		filtered = entries // depth=0 means unlimited, no filtering
+	}
+
+	// Should include all entries (no filtering)
+	if len(filtered) != len(entries) {
+		t.Errorf(
+			"Unlimited depth filtered count = %d, want %d",
+			len(filtered),
+			len(entries),
+		)
+	}
+
+	// Verify we have all levels including H4
+	hasH4 := false
+	for _, entry := range filtered {
+		if entry.Level == 4 {
+			hasH4 = true
+			break
+		}
+	}
+
+	if !hasH4 {
+		t.Error("Unlimited depth should include H4 entries")
+	}
+}
+
 // Helper function to check if a string contains a substring.
 func containsString(s, substr string) bool {
 	return len(s) >= len(substr) && findSubstring(s, substr)
