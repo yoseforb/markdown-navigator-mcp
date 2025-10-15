@@ -1,6 +1,7 @@
 package ctags
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -45,12 +46,12 @@ func TestCacheManager_Hit(t *testing.T) {
 	file := createTestMarkdownFile(t, "# Test\n## Section\n")
 
 	// First access - cache miss
-	tags1, err := cache.GetTags(file)
+	tags1, err := cache.GetTags(context.Background(), file)
 	require.NoError(t, err)
 	require.NotEmpty(t, tags1)
 
 	// Second access - cache hit
-	tags2, err := cache.GetTags(file)
+	tags2, err := cache.GetTags(context.Background(), file)
 	require.NoError(t, err)
 	require.NotEmpty(t, tags2)
 
@@ -73,7 +74,7 @@ func TestCacheManager_Miss(t *testing.T) {
 	file := createTestMarkdownFile(t, "# Initial\n")
 
 	// First access - cache miss
-	tags1, err := cache.GetTags(file)
+	tags1, err := cache.GetTags(context.Background(), file)
 	require.NoError(t, err)
 	assert.Len(t, tags1, 1)
 	assert.Equal(t, "Initial", tags1[0].Name)
@@ -93,7 +94,7 @@ func TestCacheManager_Invalidation(t *testing.T) {
 	file := createTestMarkdownFile(t, "# Original\n")
 
 	// First access - cache miss
-	tags1, err := cache.GetTags(file)
+	tags1, err := cache.GetTags(context.Background(), file)
 	require.NoError(t, err)
 	require.Len(t, tags1, 1)
 	assert.Equal(t, "Original", tags1[0].Name)
@@ -102,7 +103,7 @@ func TestCacheManager_Invalidation(t *testing.T) {
 	modifyMarkdownFile(t, file, "# Modified\n")
 
 	// Second access - cache miss (invalidated by mtime)
-	tags2, err := cache.GetTags(file)
+	tags2, err := cache.GetTags(context.Background(), file)
 	require.NoError(t, err)
 	require.Len(t, tags2, 1)
 	assert.Equal(t, "Modified", tags2[0].Name)
@@ -122,7 +123,7 @@ func TestCacheManager_ManualInvalidation(t *testing.T) {
 	file := createTestMarkdownFile(t, "# Test\n")
 
 	// First access - populate cache
-	_, err := cache.GetTags(file)
+	_, err := cache.GetTags(context.Background(), file)
 	require.NoError(t, err)
 
 	// Verify cache has entry
@@ -135,7 +136,7 @@ func TestCacheManager_ManualInvalidation(t *testing.T) {
 	assert.Equal(t, 0, cache.Size())
 
 	// Next access should be cache miss
-	_, err = cache.GetTags(file)
+	_, err = cache.GetTags(context.Background(), file)
 	require.NoError(t, err)
 
 	// Verify statistics: 1 miss (initial), 1 miss (after invalidation)
@@ -154,9 +155,9 @@ func TestCacheManager_Clear(t *testing.T) {
 	file2 := createTestMarkdownFile(t, "# File2\n")
 
 	// Populate cache with multiple files
-	_, err := cache.GetTags(file1)
+	_, err := cache.GetTags(context.Background(), file1)
 	require.NoError(t, err)
-	_, err = cache.GetTags(file2)
+	_, err = cache.GetTags(context.Background(), file2)
 	require.NoError(t, err)
 
 	// Verify cache has entries
@@ -186,7 +187,7 @@ func TestCacheManager_ConcurrentAccess(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := cache.GetTags(file)
+			_, err := cache.GetTags(context.Background(), file)
 			if err != nil {
 				errors <- err
 			}
@@ -230,7 +231,7 @@ func TestCacheManager_ConcurrentDifferentFiles(t *testing.T) {
 			wg.Add(1)
 			go func(f string) {
 				defer wg.Done()
-				_, err := cache.GetTags(f)
+				_, err := cache.GetTags(context.Background(), f)
 				if err != nil {
 					errors <- err
 				}
@@ -263,7 +264,7 @@ func TestCacheManager_ConcurrentDifferentFiles(t *testing.T) {
 func TestCacheManager_FileNotFound(t *testing.T) {
 	cache := NewCacheManager()
 
-	_, err := cache.GetTags("/nonexistent/file.md")
+	_, err := cache.GetTags(context.Background(), "/nonexistent/file.md")
 	require.Error(t, err)
 	require.ErrorIs(t, err, ErrFileNotFound)
 
@@ -291,7 +292,7 @@ func TestCacheManager_EmptyFile(t *testing.T) {
 	file := createTestMarkdownFile(t, "")
 
 	// Access empty file
-	tags, err := cache.GetTags(file)
+	tags, err := cache.GetTags(context.Background(), file)
 	require.NoError(t, err)
 	assert.Empty(t, tags, "Empty file should have no tags")
 
@@ -299,7 +300,7 @@ func TestCacheManager_EmptyFile(t *testing.T) {
 	assert.Equal(t, 1, cache.Size())
 
 	// Second access should hit cache
-	tags2, err := cache.GetTags(file)
+	tags2, err := cache.GetTags(context.Background(), file)
 	require.NoError(t, err)
 	assert.Empty(t, tags2)
 
@@ -318,19 +319,19 @@ func TestCacheManager_MultipleModifications(t *testing.T) {
 	file := createTestMarkdownFile(t, "# Version 1\n")
 
 	// Access 1
-	tags1, err := cache.GetTags(file)
+	tags1, err := cache.GetTags(context.Background(), file)
 	require.NoError(t, err)
 	assert.Equal(t, "Version 1", tags1[0].Name)
 
 	// Modify 1
 	modifyMarkdownFile(t, file, "# Version 2\n")
-	tags2, err := cache.GetTags(file)
+	tags2, err := cache.GetTags(context.Background(), file)
 	require.NoError(t, err)
 	assert.Equal(t, "Version 2", tags2[0].Name)
 
 	// Modify 2
 	modifyMarkdownFile(t, file, "# Version 3\n")
-	tags3, err := cache.GetTags(file)
+	tags3, err := cache.GetTags(context.Background(), file)
 	require.NoError(t, err)
 	assert.Equal(t, "Version 3", tags3[0].Name)
 
@@ -355,12 +356,12 @@ func BenchmarkCache_Hit(b *testing.B) {
 	require.NoError(b, err)
 
 	// Warm cache
-	_, err = cache.GetTags(file)
+	_, err = cache.GetTags(context.Background(), file)
 	require.NoError(b, err)
 
 	b.ResetTimer()
 	for range b.N {
-		_, _ = cache.GetTags(file)
+		_, _ = cache.GetTags(context.Background(), file)
 	}
 }
 
@@ -382,6 +383,6 @@ func BenchmarkCache_Miss(b *testing.B) {
 		require.NoError(b, err)
 		b.StartTimer()
 
-		_, _ = cache.GetTags(file)
+		_, _ = cache.GetTags(context.Background(), file)
 	}
 }

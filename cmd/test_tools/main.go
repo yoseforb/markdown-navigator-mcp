@@ -6,6 +6,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"flag"
 	"log"
 	"log/slog"
@@ -35,7 +36,7 @@ func main() {
 	// Test 1: Get Tags from Cache (replaces ParseTagsFile)
 	slog.Info("1. Testing GetTags from cache...")
 	cache := ctags.GetGlobalCache()
-	entries, err := cache.GetTags(markdownFile)
+	entries, err := cache.GetTags(context.Background(), markdownFile)
 	if err != nil {
 		log.Fatalf("GetTags failed: %v", err)
 	}

@@ -1,6 +1,7 @@
 package ctags
 
 import (
+	"context"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -10,7 +11,7 @@ func TestBuildTreeStructure(t *testing.T) {
 	targetFile := filepath.Join("..", "..", "testdata", "sample.md")
 
 	cache := GetGlobalCache()
-	entries, err := cache.GetTags(targetFile)
+	entries, err := cache.GetTags(context.Background(), targetFile)
 	if err != nil {
 		t.Fatalf("GetTags failed: %v", err)
 	}

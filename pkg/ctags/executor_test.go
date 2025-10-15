@@ -1,6 +1,7 @@
 package ctags
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -28,7 +29,7 @@ func TestExecuteCtags_ValidMarkdown(t *testing.T) {
 	require.NoError(t, err)
 
 	// Execute ctags
-	output, err := ExecuteCtags(mdFile)
+	output, err := ExecuteCtags(context.Background(), mdFile)
 	require.NoError(t, err)
 	require.NotEmpty(t, output)
 
@@ -57,7 +58,7 @@ func TestExecuteCtags_EmptyFile(t *testing.T) {
 	require.NoError(t, err)
 
 	// Execute ctags
-	output, err := ExecuteCtags(mdFile)
+	output, err := ExecuteCtags(context.Background(), mdFile)
 	require.NoError(t, err)
 
 	// Empty file should return empty JSON
@@ -84,7 +85,7 @@ Just paragraphs.
 	require.NoError(t, err)
 
 	// Execute ctags
-	output, err := ExecuteCtags(mdFile)
+	output, err := ExecuteCtags(context.Background(), mdFile)
 	require.NoError(t, err)
 
 	// No headings should return empty entries
@@ -94,7 +95,7 @@ Just paragraphs.
 }
 
 func TestExecuteCtags_FileNotFound(t *testing.T) {
-	output, err := ExecuteCtags("/nonexistent/file.md")
+	output, err := ExecuteCtags(context.Background(), "/nonexistent/file.md")
 	require.Error(t, err)
 	require.ErrorIs(t, err, ErrFileNotFound)
 	assert.Nil(t, output)
@@ -119,7 +120,7 @@ func TestExecuteCtags_LargeFile(t *testing.T) {
 	require.NoError(t, err)
 
 	// Execute ctags (should complete within 5 seconds)
-	output, err := ExecuteCtags(mdFile)
+	output, err := ExecuteCtags(context.Background(), mdFile)
 	require.NoError(t, err)
 	require.NotEmpty(t, output)
 
@@ -147,7 +148,7 @@ func TestExecuteCtags_SpecialCharacters(t *testing.T) {
 	require.NoError(t, err)
 
 	// Execute ctags
-	output, err := ExecuteCtags(mdFile)
+	output, err := ExecuteCtags(context.Background(), mdFile)
 	require.NoError(t, err)
 
 	// Verify entries
@@ -266,7 +267,7 @@ Final thoughts.
 	require.NoError(t, err)
 
 	// Execute ctags
-	output, err := ExecuteCtags(mdFile)
+	output, err := ExecuteCtags(context.Background(), mdFile)
 	require.NoError(t, err)
 
 	// Parse and verify structure

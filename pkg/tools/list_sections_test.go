@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 
@@ -61,7 +62,7 @@ func TestMarkdownListSections_NoPattern(t *testing.T) {
 
 	// Get tags from cache
 	cache := ctags.GetGlobalCache()
-	entries, err := cache.GetTags(targetFile)
+	entries, err := cache.GetTags(context.Background(), targetFile)
 	if err != nil {
 		t.Fatalf("GetTags failed: %v", err)
 	}
@@ -112,7 +113,7 @@ func TestMarkdownListSections_WithPattern(t *testing.T) {
 
 	// Get tags from cache
 	cache := ctags.GetGlobalCache()
-	entries, err := cache.GetTags(targetFile)
+	entries, err := cache.GetTags(context.Background(), targetFile)
 	if err != nil {
 		t.Fatalf("GetTags failed: %v", err)
 	}
@@ -165,7 +166,7 @@ func TestMarkdownListSections_EmptyPattern(t *testing.T) {
 
 	// Get tags from cache
 	cache := ctags.GetGlobalCache()
-	entries, err := cache.GetTags(targetFile)
+	entries, err := cache.GetTags(context.Background(), targetFile)
 	if err != nil {
 		t.Fatalf("GetTags failed: %v", err)
 	}
@@ -201,7 +202,7 @@ func TestMarkdownListSections_LineRanges(t *testing.T) {
 
 	// Get tags from cache
 	cache := ctags.GetGlobalCache()
-	entries, err := cache.GetTags(targetFile)
+	entries, err := cache.GetTags(context.Background(), targetFile)
 	if err != nil {
 		t.Fatalf("GetTags failed: %v", err)
 	}
@@ -250,7 +251,7 @@ func TestMarkdownListSections_AllLevels(t *testing.T) {
 
 	// Get tags from cache (no filtering by level)
 	cache := ctags.GetGlobalCache()
-	entries, err := cache.GetTags(targetFile)
+	entries, err := cache.GetTags(context.Background(), targetFile)
 	if err != nil {
 		t.Fatalf("GetTags failed: %v", err)
 	}
@@ -292,7 +293,7 @@ func TestMarkdownListSections_H3WithPattern(t *testing.T) {
 
 	// Get tags from cache
 	cache := ctags.GetGlobalCache()
-	entries, err := cache.GetTags(targetFile)
+	entries, err := cache.GetTags(context.Background(), targetFile)
 	if err != nil {
 		t.Fatalf("GetTags failed: %v", err)
 	}
@@ -338,7 +339,7 @@ func TestMarkdownListSections_NoMatchingPattern(t *testing.T) {
 
 	// Get tags from cache
 	cache := ctags.GetGlobalCache()
-	entries, err := cache.GetTags(targetFile)
+	entries, err := cache.GetTags(context.Background(), targetFile)
 	if err != nil {
 		t.Fatalf("GetTags failed: %v", err)
 	}
@@ -373,7 +374,7 @@ func TestMarkdownListSections_H4Sections(t *testing.T) {
 
 	// Get tags from cache
 	cache := ctags.GetGlobalCache()
-	entries, err := cache.GetTags(targetFile)
+	entries, err := cache.GetTags(context.Background(), targetFile)
 	if err != nil {
 		t.Fatalf("GetTags failed: %v", err)
 	}
@@ -431,7 +432,7 @@ func TestMarkdownListSections_CaseInsensitivePattern(t *testing.T) {
 
 	// Get tags from cache
 	cache := ctags.GetGlobalCache()
-	entries, err := cache.GetTags(targetFile)
+	entries, err := cache.GetTags(context.Background(), targetFile)
 	if err != nil {
 		t.Fatalf("GetTags failed: %v", err)
 	}
@@ -478,7 +479,7 @@ func TestMarkdownListSections_HeadingLevelALL(t *testing.T) {
 
 	// Get tags from cache
 	cache := ctags.GetGlobalCache()
-	entries, err := cache.GetTags(targetFile)
+	entries, err := cache.GetTags(context.Background(), targetFile)
 	if err != nil {
 		t.Fatalf("GetTags failed: %v", err)
 	}
@@ -526,7 +527,7 @@ func TestMarkdownListSections_ALLWithPattern(t *testing.T) {
 
 	// Get tags from cache
 	cache := ctags.GetGlobalCache()
-	entries, err := cache.GetTags(targetFile)
+	entries, err := cache.GetTags(context.Background(), targetFile)
 	if err != nil {
 		t.Fatalf("GetTags failed: %v", err)
 	}
