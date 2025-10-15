@@ -40,7 +40,7 @@ sudo dnf install universal-ctags
 cd markdown-mcp
 
 # Build the server
-go build -o markdown-nav-server
+go build -o markdown-nav-server ./cmd/server
 
 # Optional: Install to your PATH
 sudo cp markdown-nav-server /usr/local/bin/
@@ -247,7 +247,11 @@ Claude:
 
 ```
 markdown-mcp/
-├── main.go                    # MCP server entry point
+├── cmd/
+│   ├── server/
+│   │   └── main.go           # MCP server entry point
+│   └── test_tools/
+│       └── main.go           # Tool testing utility
 ├── pkg/
 │   ├── ctags/
 │   │   ├── cache.go          # Mtime-based caching

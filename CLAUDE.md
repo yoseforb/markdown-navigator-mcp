@@ -46,7 +46,11 @@ Based on benchmark testing:
 
 ```
 markdown-mcp/
-├── main.go                      # MCP server entry point
+├── cmd/
+│   ├── server/
+│   │   └── main.go             # MCP server entry point
+│   └── test_tools/
+│       └── main.go             # Tool testing utility
 ├── pkg/
 │   ├── ctags/
 │   │   ├── parser.go           # Current: Tab-separated ctags parsing
@@ -62,9 +66,6 @@ markdown-mcp/
 │       ├── section_bounds.go   # markdown_section_bounds tool
 │       ├── read_section.go     # markdown_read_section tool
 │       └── list_sections.go    # markdown_list_sections tool
-├── cmd/
-│   └── test_tools/
-│       └── main.go             # Tool testing utility
 ├── testdata/                   # Test fixtures
 ├── go.mod                      # Go module definition
 ├── go.sum                      # Go module checksums
@@ -183,7 +184,7 @@ All code changes MUST pass these quality gates before commit:
 2. **Formatting**: `gofumpt -w .` (code must be formatted)
 3. **Testing**: `go test ./...` (all tests must pass)
 4. **Coverage**: Maintain or improve test coverage
-5. **Build**: `go build -o markdown-nav-server` (must compile)
+5. **Build**: `go build -o markdown-nav-server ./cmd/server` (must compile)
 
 ### Go Development Standards
 
@@ -458,7 +459,7 @@ golangci-lint run --fix
 gofumpt -w .
 
 # Build server
-go build -o markdown-nav-server
+go build -o markdown-nav-server ./cmd/server
 
 # Run integration tests
 ./test-integration.sh
@@ -691,7 +692,7 @@ git commit -m "fix(scope): description"
 **Run full validation**:
 ```bash
 # Format, lint, test, build
-gofumpt -w . && golangci-lint run && go test ./... && go build
+gofumpt -w . && golangci-lint run && go test ./... && go build ./cmd/server
 ```
 
 **Debug ctags output**:
@@ -705,7 +706,7 @@ ctags --output-format=json --fields=+KnS --languages=markdown -f - file.md
 
 ### Key Files Reference
 
-- **main.go**: Server initialization, tool registration
+- **cmd/server/main.go**: Server initialization, tool registration
 - **pkg/ctags/parser.go**: Current tab-separated parsing logic
 - **pkg/ctags/tree.go**: Tree structure building from tags
 - **pkg/tools/tree.go**: markdown_tree tool implementation
