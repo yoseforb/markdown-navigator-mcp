@@ -135,9 +135,9 @@ Display hierarchical document structure in JSON or ASCII format.
 
 **Parameters:**
 - `file_path` (required): Path to markdown file
-- `format` (optional): Output format - `"json"` (default) or `"ascii"`
-- `pattern` (optional): Filter to sections matching pattern (fuzzy match)
-- `max_depth` (optional): Maximum depth to display (default: 2, use 0 for unlimited)
+- `format` (optional): Output format - `"json"` or `"ascii"`. Default: `"json"` when not specified.
+- `pattern` (optional): Filter to sections matching pattern (fuzzy match). Default: no filtering when not specified.
+- `max_depth` (optional): Maximum depth to display. Default: `2` (two levels). Use `0` for unlimited depth.
 
 **Example (ASCII format):**
 ```json
@@ -234,7 +234,7 @@ Read a specific section's content.
 **Parameters:**
 - `file_path` (required): Path to markdown file
 - `section_query` (required): Section name or search query
-- `include_subsections` (optional): Include child sections (default: true)
+- `include_subsections` (optional): **Currently not implemented** - always reads from section start to end line (including all subsections). TODO: Will allow reading only the parent section without children when set to `false`.
 
 **Example:**
 ```json
@@ -261,8 +261,8 @@ List all sections matching filters.
 
 **Parameters:**
 - `file_path` (required): Path to markdown file
-- `heading_level` (optional): Filter by level (H1, H2, H3, H4, or ALL)
-- `pattern` (optional): Search pattern (fuzzy match)
+- `heading_level` (optional): Filter by level (H1, H2, H3, H4, or ALL). Default: shows all levels when not specified.
+- `pattern` (optional): Search pattern (fuzzy match). Default: no filtering when not specified.
 
 **Example:**
 ```json

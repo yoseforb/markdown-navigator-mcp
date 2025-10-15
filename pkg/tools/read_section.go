@@ -33,7 +33,9 @@ func RegisterMarkdownReadSection(srv server.Server) {
 		"markdown_read_section",
 		"Read a specific section's content",
 		func(_ *server.Context, args MarkdownReadSectionArgs) (interface{}, error) {
-			// Note: IncludeSubsections is available in args if needed for future functionality
+			// TODO: Implement IncludeSubsections parameter functionality.
+			// Currently always reads from section start to end line (including all subsections).
+			// When false, should stop reading before first child section.
 
 			// Note: gomcp's server.Context does not provide request-level context.
 			// Application-level cancellation is handled via signal handling in main.go.
