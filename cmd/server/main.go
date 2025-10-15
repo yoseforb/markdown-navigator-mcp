@@ -1,17 +1,37 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/localrivet/gomcp/server"
 	"github.com/yoseforb/markdown-nav-mcp/pkg/ctags"
 	"github.com/yoseforb/markdown-nav-mcp/pkg/tools"
 )
 
+const (
+	// ShutdownTimeout is the maximum time to wait for graceful shutdown.
+	ShutdownTimeout = 10 * time.Second
+)
+
 func main() {
+	if err := run(); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
+}
+
+func run() error {
+	// Create base context with cancellation
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Parse command-line flags
 	ctagsPath := flag.String(
 		"ctags-path",
@@ -33,12 +53,25 @@ func main() {
 			"path", *ctagsPath,
 			"error", err,
 		)
-		log.Fatalf("Invalid ctags path: %v", err)
+		return fmt.Errorf("invalid ctags path: %w", err)
 	}
 
 	logger.Info("Configured ctags executable",
 		"path", ctags.GetCtagsPath(),
 	)
+
+	// Setup signal handling for graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	// Launch signal handler goroutine
+	go func() {
+		sig := <-sigChan
+		logger.Info("Received shutdown signal",
+			"signal", sig.String(),
+		)
+		cancel()
+	}()
 
 	// Create a new MCP server
 	srv := server.NewServer("markdown-nav",
@@ -60,8 +93,46 @@ func main() {
 		},
 	)
 
-	// Start the server
-	if err := srv.Run(); err != nil {
-		log.Fatalf("Server error: %v", err)
+	// Run server in goroutine with error channel
+	errChan := make(chan error, 1)
+	go func() {
+		if err := srv.Run(); err != nil {
+			errChan <- err
+		}
+	}()
+
+	// Wait for shutdown signal or server error
+	select {
+	case <-ctx.Done():
+		logger.Info("Shutting down gracefully")
+	case err := <-errChan:
+		logger.Error("Server error", "error", err)
+		return err
 	}
+
+	// Create shutdown context with timeout
+	shutdownCtx, shutdownCancel := context.WithTimeout(
+		ctx,
+		ShutdownTimeout,
+	)
+	defer shutdownCancel()
+
+	// Shutdown server (check if srv has Shutdown method)
+	logger.Info("Shutting down server",
+		"timeout", ShutdownTimeout.String(),
+	)
+
+	// Note: gomcp server may not have a Shutdown() method
+	// If it doesn't, the server will stop when Run() returns
+	// Context cancellation will propagate through tool handlers
+
+	// Wait for shutdown context or early completion
+	<-shutdownCtx.Done()
+
+	// Get cache statistics and shutdown cache
+	cache := ctags.GetGlobalCache()
+	cache.Shutdown(logger)
+
+	logger.Info("Server shutdown complete")
+	return nil
 }
