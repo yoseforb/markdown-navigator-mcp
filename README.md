@@ -234,9 +234,11 @@ Read a specific section's content.
 **Parameters:**
 - `file_path` (required): Path to markdown file
 - `section_query` (required): Section name or search query
-- `include_subsections` (optional): **Currently not implemented** - always reads from section start to end line (including all subsections). TODO: Will allow reading only the parent section without children when set to `false`.
+- `include_subsections` (optional): Include child sections. Default: `true` when not specified.
+  - `true`: Reads from section start to end (includes all subsections)
+  - `false`: Reads only the parent section content (stops before first child heading)
 
-**Example:**
+**Example (include subsections - default):**
 ```json
 {
   "file_path": "docs/planning.md",
@@ -247,11 +249,31 @@ Read a specific section's content.
 **Response:**
 ```json
 {
-  "content": "## Task 1: Authentication\n\n### Requirements\n...",
+  "content": "## Task 1: Authentication\n\n### Requirements\n...\n\n### Implementation\n...",
   "section_name": "Task 1: Authentication",
   "start_line": 50,
   "end_line": 149,
   "lines_read": 100
+}
+```
+
+**Example (exclude subsections):**
+```json
+{
+  "file_path": "docs/planning.md",
+  "section_query": "Task 1",
+  "include_subsections": false
+}
+```
+
+**Response:**
+```json
+{
+  "content": "## Task 1: Authentication\n\nThis task involves implementing user authentication...",
+  "section_name": "Task 1: Authentication",
+  "start_line": 50,
+  "end_line": 53,
+  "lines_read": 4
 }
 ```
 
