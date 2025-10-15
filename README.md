@@ -74,6 +74,58 @@ Or if installed in PATH:
 }
 ```
 
+### Configuration Options
+
+The server supports the following command-line flags:
+
+#### `-ctags-path`
+
+Specify a custom path to the ctags executable. By default, the server looks for `ctags` in your PATH.
+
+**Usage examples:**
+
+```json
+{
+  "mcpServers": {
+    "markdown-nav": {
+      "command": "/path/to/markdown-nav-server",
+      "args": ["-ctags-path", "/usr/local/bin/universal-ctags"]
+    }
+  }
+}
+```
+
+Or for custom ctags installation:
+
+```json
+{
+  "mcpServers": {
+    "markdown-nav": {
+      "command": "markdown-nav-server",
+      "args": ["-ctags-path", "/opt/ctags/bin/ctags"]
+    }
+  }
+}
+```
+
+**When to use:**
+- Ctags is installed in a non-standard location
+- Multiple ctags versions are installed and you need to specify which one
+- Using a custom-built ctags binary
+
+**Command-line usage:**
+
+```bash
+# Use default ctags from PATH
+./markdown-nav-server
+
+# Specify custom ctags path
+./markdown-nav-server -ctags-path /usr/local/bin/universal-ctags
+
+# View help
+./markdown-nav-server -h
+```
+
 ## Tools
 
 ### markdown_tree
@@ -297,7 +349,23 @@ golangci-lint run --fix
 
 **Error**: `ctags not found in PATH: install universal-ctags`
 
-**Solution**: Install Universal Ctags (see Prerequisites section)
+**Solutions**:
+1. Install Universal Ctags (see Prerequisites section)
+2. If ctags is installed in a non-standard location, use the `-ctags-path` flag:
+   ```bash
+   markdown-nav-server -ctags-path /path/to/ctags
+   ```
+3. Update your MCP configuration to include the custom path:
+   ```json
+   {
+     "mcpServers": {
+       "markdown-nav": {
+         "command": "markdown-nav-server",
+         "args": ["-ctags-path", "/usr/local/bin/universal-ctags"]
+       }
+     }
+   }
+   ```
 
 ### Cache issues
 
