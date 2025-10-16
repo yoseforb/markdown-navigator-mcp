@@ -21,7 +21,7 @@ func main() {
 			"Usage: go run test_tools.go <markdown-file>",
 		)
 		slog.Info(
-			"Example: go run test_tools.go mcp-markdown-nav-server-prompt.md",
+			"Example: go run test_tools.go mcp-mdnav-server-prompt.md",
 		)
 		os.Exit(1)
 	}

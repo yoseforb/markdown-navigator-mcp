@@ -1720,7 +1720,7 @@ golangci-lint run pkg/tools/list_sections.go
 gofumpt -w pkg/tools/list_sections.go
 
 # Build server
-go build -o markdown-nav-server
+go build -o mdnav-server
 
 # Run integration tests
 go run cmd/test_tools/main.go testdata/large.md

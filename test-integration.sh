@@ -6,13 +6,13 @@ set -e
 
 if [ $# -eq 0 ]; then
     echo "Usage: $0 <markdown-file>"
-    echo "Example: $0 mcp-markdown-nav-server-prompt.md"
+    echo "Example: $0 mcp-mdnav-server-prompt.md"
     exit 1
 fi
 
 MARKDOWN_FILE="$1"
 TAGS_FILE="${2:-tags}"
-SERVER="./markdown-nav-server"
+SERVER="./mdnav-server"
 
 # Colors for output
 RED='\033[0;31m'
@@ -23,7 +23,7 @@ NC='\033[0m' # No Color
 # Check if server binary exists
 if [ ! -f "$SERVER" ]; then
     echo -e "${RED}Error: Server binary not found at $SERVER${NC}"
-    echo "Please build it first: go build -o markdown-nav-server"
+    echo "Please build it first: go build -o mdnav-server"
     exit 1
 fi
 

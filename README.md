@@ -41,10 +41,10 @@ sudo dnf install universal-ctags
 cd markdown-mcp
 
 # Build the server
-go build -o markdown-nav-server ./cmd/server
+go build -o mdnav-server ./cmd/server
 
 # Optional: Install to your PATH
-sudo cp markdown-nav-server /usr/local/bin/
+sudo cp mdnav-server /usr/local/bin/
 ```
 
 ## Usage
@@ -57,7 +57,7 @@ Add the server to your Claude Code MCP configuration (`~/.config/claude-code/mcp
 {
   "mcpServers": {
     "markdown-nav": {
-      "command": "/path/to/markdown-nav-server"
+      "command": "/path/to/mdnav-server"
     }
   }
 }
@@ -69,7 +69,7 @@ Or if installed in PATH:
 {
   "mcpServers": {
     "markdown-nav": {
-      "command": "markdown-nav-server"
+      "command": "mdnav-server"
     }
   }
 }
@@ -89,7 +89,7 @@ Specify a custom path to the ctags executable. By default, the server looks for 
 {
   "mcpServers": {
     "markdown-nav": {
-      "command": "/path/to/markdown-nav-server",
+      "command": "/path/to/mdnav-server",
       "args": ["-ctags-path", "/usr/local/bin/universal-ctags"]
     }
   }
@@ -102,7 +102,7 @@ Or for custom ctags installation:
 {
   "mcpServers": {
     "markdown-nav": {
-      "command": "markdown-nav-server",
+      "command": "mdnav-server",
       "args": ["-ctags-path", "/opt/ctags/bin/ctags"]
     }
   }
@@ -118,13 +118,13 @@ Or for custom ctags installation:
 
 ```bash
 # Use default ctags from PATH
-./markdown-nav-server
+./mdnav-server
 
 # Specify custom ctags path
-./markdown-nav-server -ctags-path /usr/local/bin/universal-ctags
+./mdnav-server -ctags-path /usr/local/bin/universal-ctags
 
 # View help
-./markdown-nav-server -h
+./mdnav-server -h
 ```
 
 ## Tools
@@ -461,14 +461,14 @@ golangci-lint run --fix
 1. Install Universal Ctags (see Prerequisites section)
 2. If ctags is installed in a non-standard location, use the `-ctags-path` flag:
    ```bash
-   markdown-nav-server -ctags-path /path/to/ctags
+   mdnav-server -ctags-path /path/to/ctags
    ```
 3. Update your MCP configuration to include the custom path:
    ```json
    {
      "mcpServers": {
        "markdown-nav": {
-         "command": "markdown-nav-server",
+         "command": "mdnav-server",
          "args": ["-ctags-path", "/usr/local/bin/universal-ctags"]
        }
      }

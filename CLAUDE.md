@@ -184,7 +184,7 @@ All code changes MUST pass these quality gates before commit:
 2. **Formatting**: `gofumpt -w .` (code must be formatted)
 3. **Testing**: `go test ./...` (all tests must pass)
 4. **Coverage**: Maintain or improve test coverage
-5. **Build**: `go build -o markdown-nav-server ./cmd/server` (must compile)
+5. **Build**: `go build -o mdnav-server ./cmd/server` (must compile)
 
 ### Go Development Standards
 
@@ -459,7 +459,7 @@ golangci-lint run --fix
 gofumpt -w .
 
 # Build server
-go build -o markdown-nav-server ./cmd/server
+go build -o mdnav-server ./cmd/server
 
 # Run integration tests
 ./test-integration.sh
