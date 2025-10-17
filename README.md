@@ -135,9 +135,9 @@ Display hierarchical document structure in JSON or ASCII format.
 
 **Parameters:**
 - `file_path` (required): Path to markdown file
-- `format` (optional): Output format - `"json"` or `"ascii"`. Default: `"json"` when not specified.
-- `pattern` (optional): Filter to sections matching pattern (fuzzy match). Default: no filtering when not specified.
-- `max_depth` (optional): Maximum depth to display. Default: `2` (two levels). Use `0` for unlimited depth.
+- `format` (optional): Output format - `"json"` or `"ascii"`. Default: `"json"`
+- `section_name_pattern` (optional): Regex pattern to filter which sections appear in tree. Example: `"Task.*"` shows only sections starting with "Task"
+- `max_depth` (optional): Maximum tree depth to display (1-6, 0=all). Default: `2` (H1+H2)
 
 **Example (ASCII format):**
 ```json
@@ -169,7 +169,7 @@ Display hierarchical document structure in JSON or ASCII format.
 {
   "file_path": "docs/planning.md",
   "format": "json",
-  "pattern": "Task",
+  "section_name_pattern": "Task",
   "max_depth": 3
 }
 ```
@@ -206,13 +206,13 @@ Find line number boundaries for a specific section.
 
 **Parameters:**
 - `file_path` (required): Path to markdown file
-- `section_query` (required): Section name or search query (fuzzy match)
+- `section_heading` (required): Exact heading text to find (case-sensitive, without # symbols). Example: `"Executive Summary"` not `"## Executive Summary"`
 
 **Example:**
 ```json
 {
   "file_path": "docs/planning.md",
-  "section_query": "Task 1"
+  "section_heading": "Task 1: Authentication"
 }
 ```
 
@@ -233,19 +233,14 @@ Read a specific section's content with granular control over subsection depth.
 
 **Parameters:**
 - `file_path` (required): Path to markdown file
-- `section_query` (required): Section name or search query
-- `depth` (optional): Maximum subsection depth to include. Default: unlimited (reads all subsections).
-  - `null` or omitted: Unlimited depth - read all subsections
-  - `0`: No subsections - only section content before first child
-  - `1`: Immediate children only (e.g., H2 + H3, skip H4)
-  - `2`: Children + grandchildren (e.g., H2 + H3 + H4, skip H5)
-  - Negative values treated as `0`
+- `section_heading` (required): Exact heading text to find (case-sensitive, without # symbols). Example: `"Task 2: Implementation"` not `"## Task 2: Implementation"`
+- `max_subsection_levels` (optional): Limit subsection depth. Omit to read entire section (recommended). `0`=no subsections, `1`=immediate children only, `2`=children+grandchildren. Warning: This LIMITS content, not expands it
 
 **Example (unlimited depth - default):**
 ```json
 {
   "file_path": "docs/planning.md",
-  "section_query": "Task 1"
+  "section_heading": "Task 1: Authentication"
 }
 ```
 
@@ -260,12 +255,12 @@ Read a specific section's content with granular control over subsection depth.
 }
 ```
 
-**Example (depth=0 - section content only):**
+**Example (max_subsection_levels=0 - section content only):**
 ```json
 {
   "file_path": "docs/planning.md",
-  "section_query": "Task 1",
-  "depth": 0
+  "section_heading": "Task 1: Authentication",
+  "max_subsection_levels": 0
 }
 ```
 
@@ -280,12 +275,12 @@ Read a specific section's content with granular control over subsection depth.
 }
 ```
 
-**Example (depth=1 - include immediate children):**
+**Example (max_subsection_levels=1 - include immediate children):**
 ```json
 {
   "file_path": "docs/planning.md",
-  "section_query": "Task 1",
-  "depth": 1
+  "section_heading": "Task 1: Authentication",
+  "max_subsection_levels": 1
 }
 ```
 
@@ -300,7 +295,7 @@ Read a specific section's content with granular control over subsection depth.
 }
 ```
 
-**Note:** With `depth=1`, H3 subsections are included but any H4 subsections inside them are excluded.
+**Note:** With `max_subsection_levels=1`, H3 subsections are included but any H4 subsections inside them are excluded.
 
 ### markdown_list_sections
 
@@ -308,15 +303,15 @@ List all sections matching filters.
 
 **Parameters:**
 - `file_path` (required): Path to markdown file
-- `heading_level` (optional): Filter by level (H1, H2, H3, H4, or ALL). Default: `H2` when not specified.
-- `pattern` (optional): Search pattern (fuzzy match). Default: no filtering when not specified.
+- `max_depth` (optional): Maximum heading depth to show (1-6). Default: `2` (H1+H2). Use `0` for all levels. Example: `1`=only H1, `2`=H1+H2, `3`=H1+H2+H3
+- `section_name_pattern` (optional): Regex pattern to filter section names. Example: `"Task.*"` matches sections starting with "Task"
 
 **Example:**
 ```json
 {
   "file_path": "docs/planning.md",
-  "heading_level": "H2",
-  "pattern": "Task"
+  "max_depth": 2,
+  "section_name_pattern": "Task"
 }
 ```
 
@@ -355,9 +350,9 @@ List all sections matching filters.
 User: "Analyze Task 4 from the route refactoring plan"
 
 Claude:
-1. Uses markdown_tree with pattern="Task" and max_depth=2 to see all tasks
-2. Uses markdown_section_bounds to find Task 4 location
-3. Uses markdown_read_section to read just Task 4
+1. Uses markdown_tree with section_name_pattern="Task" and max_depth=2 to see all tasks
+2. Uses markdown_section_bounds with section_heading="Task 4" to find Task 4 location
+3. Uses markdown_read_section with section_heading="Task 4" to read just Task 4
 4. Provides comprehensive analysis using only 25% of document
 ```
 
@@ -367,7 +362,7 @@ Claude:
 User: "Show me all tasks in the planning document"
 
 Claude:
-1. Uses markdown_list_sections with heading_level="H2" and pattern="Task"
+1. Uses markdown_list_sections with max_depth=2 and section_name_pattern="Task"
 2. Returns list of all Task sections with line numbers
 ```
 
@@ -378,16 +373,16 @@ User: "Implement Task 4"
 
 Claude:
 1. markdown_tree format="ascii" max_depth=2 - Get quick overview
-2. markdown_read_section "Executive Summary" - Context
-3. markdown_read_section "Task 4" - Implementation details
-4. markdown_read_section "Testing Strategy" - Validation
+2. markdown_read_section section_heading="Executive Summary" - Context
+3. markdown_read_section section_heading="Task 4" - Implementation details
+4. markdown_read_section section_heading="Testing Strategy" - Validation
 5. Autonomous understanding with minimal context usage
 ```
 
 ## Benefits
 
 - **Zero configuration**: No manual ctags generation - works automatically
-- **Reduced context usage**: Read only the sections you need (70-80% reduction)
+- **Reduced context usage**: Read only the sections you need (50-70% reduction)
 - **Faster navigation**: Jump directly to relevant sections
 - **High performance**: Sub-microsecond cache hits, ~13ms cache misses
 - **Always fresh**: Automatic cache invalidation on file changes
@@ -485,8 +480,8 @@ If you experience stale data or cache-related issues, restart the MCP server to 
 
 **Solution**:
 1. Verify the section exists in the markdown file
-2. Try a shorter search query (fuzzy matching is supported)
-3. Use `markdown_list_sections` to see all available sections
+2. Use the exact heading text (case-sensitive, without # symbols)
+3. Use `markdown_list_sections` to see all available sections and their exact names
 
 ### No entries found
 

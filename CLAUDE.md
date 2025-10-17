@@ -14,24 +14,20 @@
 
 ### Current Implementation
 
-The project currently uses a **pre-generated ctags file** approach:
-
-1. Users must manually generate a `tags` file using: `ctags -R --fields=+KnS --languages=markdown`
-2. The server parses the **tab-separated format** in `pkg/ctags/parser.go`
-3. Tools query the parsed tags to provide navigation capabilities
-4. No caching - tags file is re-parsed on every tool invocation
-
-### Planned Architecture (Refactoring in Progress)
-
-The refactoring will introduce **on-demand ctags execution with mtime-based caching**:
+The project uses **on-demand ctags execution with mtime-based caching**:
 
 1. **JSON-based ctags parsing** (`--output-format=json`)
-2. **On-demand ctags execution** per file instead of pre-generated tags file
+2. **On-demand ctags execution** per file with automatic caching
 3. **In-memory caching** with file modification time (mtime) tracking
 4. **Concurrent-safe cache** with `sync.RWMutex` protection
 5. **Automatic cache invalidation** when files change
+6. **Zero configuration** - no manual ctags file generation required
 
-#### Performance Characteristics
+### Architecture History
+
+Previous versions (pre-v0.1.0) used a **pre-generated ctags file** approach that required manual tags file generation. This was replaced with the current on-demand execution model for zero-configuration operation.
+
+### Performance Characteristics
 
 Based on benchmark testing:
 - **mtime checking**: 528 nanoseconds (~1,900,000 ops/sec)
@@ -90,7 +86,9 @@ The server provides 4 MCP tools for markdown navigation:
 
 **Parameters**:
 - `file_path` (required): Path to markdown file
-- `tags_file` (optional): Path to ctags file (default: "tags")
+- `format` (optional): Output format - "json" or "ascii" (default: "json")
+- `section_name_pattern` (optional): Regex pattern to filter sections
+- `max_depth` (optional): Maximum tree depth (1-6, 0=all, default: 2)
 
 **Output Format**:
 ```
@@ -112,8 +110,7 @@ planning.md
 
 **Parameters**:
 - `file_path` (required): Path to markdown file
-- `section_query` (required): Section name or search query (fuzzy match)
-- `tags_file` (optional): Path to ctags file (default: "tags")
+- `section_heading` (required): Exact heading text (case-sensitive, without # symbols)
 
 **Response**:
 ```json
@@ -134,9 +131,8 @@ planning.md
 
 **Parameters**:
 - `file_path` (required): Path to markdown file
-- `section_query` (required): Section name or search query
-- `tags_file` (optional): Path to ctags file (default: "tags")
-- `include_subsections` (optional): Include child sections (default: true)
+- `section_heading` (required): Exact heading text (case-sensitive, without # symbols)
+- `max_subsection_levels` (optional): Limit subsection depth (omit for unlimited, 0=no subsections, 1=immediate children, 2=children+grandchildren)
 
 **Response**:
 ```json
@@ -157,9 +153,8 @@ planning.md
 
 **Parameters**:
 - `file_path` (required): Path to markdown file
-- `heading_level` (optional): Filter by level (H1, H2, H3, H4)
-- `pattern` (optional): Search pattern (fuzzy match)
-- `tags_file` (optional): Path to ctags file (default: "tags")
+- `max_depth` (optional): Maximum heading depth (1-6, 0=all, default: 2)
+- `section_name_pattern` (optional): Regex pattern to filter section names
 
 **Response**:
 ```json
@@ -230,19 +225,28 @@ if err != nil {
 
 In gomcp (v1.7.2), **all struct fields are treated as required by default**, regardless of JSON tags. To make a parameter optional, you MUST use **pointer types**.
 
-**WRONG - These are still required:**
+**Struct Tag Format**
+
+gomcp requires **separate tags** for `description:` and `required:`:
+
 ```go
 type ToolArgs struct {
-    FilePath string `json:"file_path" jsonschema:"required,description=..."`
-    Pattern  string `json:"pattern,omitempty" jsonschema:"description=..."`  // STILL REQUIRED!
+    // CORRECT - Required parameter with separate tags
+    FilePath string `json:"file_path" description:"Path to file" required:"true"`
+
+    // CORRECT - Optional parameter (pointer type, no required tag)
+    Pattern *string `json:"pattern,omitempty" description:"Regex pattern to filter"`
 }
 ```
 
-**CORRECT - Optional parameters using pointers:**
+**WRONG - These formats don't work:**
 ```go
 type ToolArgs struct {
-    FilePath string  `json:"file_path" jsonschema:"required,description=..."`
-    Pattern  *string `json:"pattern,omitempty" jsonschema:"description=..."`  // Optional
+    // WRONG - Combined jsonschema tag (old format)
+    FilePath string `json:"file_path" jsonschema:"required,description=Path to file"`
+
+    // WRONG - Non-pointer optional (still required!)
+    Pattern  string `json:"pattern,omitempty" description:"Pattern"`
 }
 ```
 
@@ -275,8 +279,9 @@ With pointer field:
 ```
 
 **Rule of Thumb:**
-- Required parameter: Use value type (`string`, `int`, `bool`)
-- Optional parameter: Use pointer type (`*string`, `*int`, `*bool`)
+- Required parameter: Use value type (`string`, `int`, `bool`) with `required:"true"` tag
+- Optional parameter: Use pointer type (`*string`, `*int`, `*bool`) without required tag
+- Use separate `description:` and `required:` tags (not combined `jsonschema:` tag)
 - Always check for `nil` before dereferencing pointers
 
 #### Testing Standards
@@ -534,38 +539,48 @@ func TestCache_MtimeInvalidation(t *testing.T) {
 }
 ```
 
-## Refactoring Plan
+## Recent Breaking Changes (2025-10-17)
 
-**Status**: Planning phase - detailed implementation plan available
+**Commit**: `0a78d45` - Parameter renames and struct tag fixes
 
-**Overview**: Refactor from pre-generated tags file to on-demand ctags execution with mtime-based caching.
+### Parameter Name Changes
 
-### Key Changes
-- Remove manual ctags generation requirement
-- Switch to JSON ctags output format (`--output-format=json`)
-- Implement concurrent-safe in-memory cache with mtime tracking
-- Zero-configuration user experience
+All MCP tools have been updated with clearer, more explicit parameter names:
 
-### Performance Rationale
-Based on benchmarking:
-- **mtime checking**: 528ns (cache validation)
-- **MD5 hashing**: 483µs (alternate approach - 915x slower)
-- **ctags execution**: 12.6ms (cache miss penalty)
+**markdown_tree:**
+- `pattern` → `section_name_pattern`
+- Added `format` parameter (json/ascii)
 
-**Decision**: Use mtime-based caching (915x faster than MD5, reliable for markdown workflows)
+**markdown_section_bounds:**
+- `section_query` → `section_heading` (now requires exact match, case-sensitive)
 
-### Implementation
-The complete refactoring plan is documented in:
-**[`ai-docs/planning/backlog/json-cache-refactoring.md`](ai-docs/planning/backlog/json-cache-refactoring.md)**
+**markdown_read_section:**
+- `section_query` → `section_heading` (now requires exact match, case-sensitive)
+- `depth` → `max_subsection_levels` (clearer semantics)
 
-This document includes:
-- 6 implementation phases with time estimates
-- Complete architecture diagrams and code examples
-- Testing strategy and acceptance criteria
-- Risk assessment and mitigation strategies
-- Migration path for existing users
+**markdown_list_sections:**
+- `heading_level` (enum: H1/H2/H3/ALL) → `max_depth` (integer: 0-6, cumulative)
+- `pattern` → `section_name_pattern`
 
-**Estimated effort**: 8-14 hours over 4-6 development sessions
+### Struct Tag Format Change
+
+All tools now use separate `description:` and `required:` tags instead of combined `jsonschema:` tags:
+
+```go
+// NEW format (required)
+FilePath string `json:"file_path" description:"Path to file" required:"true"`
+
+// OLD format (no longer works)
+FilePath string `json:"file_path" jsonschema:"required,description=Path to file"`
+```
+
+### Migration Guide
+
+If you have code or scripts using the old parameter names:
+1. Replace `section_query` with `section_heading` (and use exact heading text)
+2. Replace `pattern` with `section_name_pattern`
+3. Replace `heading_level` values (H1/H2/etc) with `max_depth` numbers (1/2/etc)
+4. Replace `depth` with `max_subsection_levels`
 
 ## Project Context
 
@@ -576,7 +591,7 @@ Claude Code and other MCP clients have limited context windows. Large markdown d
 ### Solution Approach
 
 Provide **structural navigation** of markdown files using ctags:
-1. Parse markdown heading structure (H1-H4)
+1. Parse markdown heading structure (H1-H6, all 6 levels supported as of 2025-10-17)
 2. Expose hierarchical tree view
 3. Enable targeted section reading
 4. Support section querying and filtering
@@ -593,24 +608,24 @@ This allows agents to:
 - Agent receives: "Analyze Task 4 from the route refactoring plan"
 - Agent workflow:
   1. `markdown_tree` - Get document overview
-  2. `markdown_section_bounds` - Find Task 4 location
-  3. `markdown_read_section` - Read only Task 4 content
+  2. `markdown_section_bounds` with `section_heading="Task 4"` - Find Task 4 location
+  3. `markdown_read_section` with `section_heading="Task 4"` - Read only Task 4 content
 - Result: Comprehensive analysis using only 25% of document tokens
 
 **Use Case 2: Implementation Workflow**
 - Agent receives: "Implement Task 4 from planning document"
 - Agent workflow:
   1. `markdown_tree` - Understand document structure
-  2. `markdown_read_section` "Executive Summary" - Get context
-  3. `markdown_read_section` "Task 4" - Get implementation details
-  4. `markdown_read_section` "Testing Strategy" - Get validation requirements
+  2. `markdown_read_section` with `section_heading="Executive Summary"` - Get context
+  3. `markdown_read_section` with `section_heading="Task 4"` - Get implementation details
+  4. `markdown_read_section` with `section_heading="Testing Strategy"` - Get validation requirements
 - Result: Autonomous implementation with minimal context usage
 
 **Use Case 3: Documentation Discovery**
 - Agent receives: "What testing tasks are documented?"
 - Agent workflow:
-  1. `markdown_list_sections` pattern="test" - Find all testing sections
-  2. For each section: `markdown_read_section` - Read details
+  1. `markdown_list_sections` with `section_name_pattern="test"` - Find all testing sections
+  2. For each section: `markdown_read_section` with exact `section_heading` - Read details
 - Result: Comprehensive understanding of documented testing requirements
 
 ### Design Decisions
@@ -726,5 +741,5 @@ ctags --output-format=json --fields=+KnS --languages=markdown -f - file.md
 
 ---
 
-**Last Updated**: 2025-10-15
-**Status**: Active Development - Refactoring to JSON-based caching architecture
+**Last Updated**: 2025-10-17
+**Status**: Active Development - JSON-based caching implemented, continuous improvements
