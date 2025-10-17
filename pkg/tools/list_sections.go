@@ -10,9 +10,9 @@ import (
 
 // MarkdownListSectionsArgs defines the input arguments.
 type MarkdownListSectionsArgs struct {
-	FilePath string  `json:"file_path"           jsonschema:"required,description=Path to markdown file"`
-	MaxDepth *int    `json:"max_depth,omitempty" jsonschema:"description=Maximum heading depth to include (1-6, 0=all). Default: 2"`
-	Pattern  *string `json:"pattern,omitempty"   jsonschema:"description=Search pattern (fuzzy match)"`
+	FilePath           string  `json:"file_path"                      description:"Path to markdown file to list sections from"                                                                            required:"true"`
+	MaxDepth           *int    `json:"max_depth,omitempty"            description:"Maximum heading depth to show (1-6). Default: 2 (H1+H2). Use 0 for all levels. Example: 1=only H1, 2=H1+H2, 3=H1+H2+H3"`
+	SectionNamePattern *string `json:"section_name_pattern,omitempty" description:"Regex pattern to filter section names. Example: 'Task.*' matches sections starting with 'Task'"`
 }
 
 // SectionInfo represents a single section in the list.
@@ -33,7 +33,7 @@ type MarkdownListSectionsResponse struct {
 func RegisterMarkdownListSections(srv server.Server) {
 	srv.Tool(
 		"markdown_list_sections",
-		"List all sections matching filters (max_depth and/or pattern)",
+		"List sections to explore document structure before reading content. Returns section names, levels, and line ranges. Most efficient way to navigate unfamiliar markdown files. Use before markdown_read_section to identify relevant sections.",
 		func(_ *server.Context, args MarkdownListSectionsArgs) (interface{}, error) {
 			// Note: gomcp's server.Context does not provide request-level context.
 			// Application-level cancellation is handled via signal handling in main.go.
@@ -70,10 +70,11 @@ func RegisterMarkdownListSections(srv server.Server) {
 			filteredEntries = ctags.FilterByDepth(filteredEntries, maxDepth)
 
 			// Filter by pattern if specified
-			if args.Pattern != nil && *args.Pattern != "" {
+			if args.SectionNamePattern != nil &&
+				*args.SectionNamePattern != "" {
 				filteredEntries = ctags.FilterByPattern(
 					filteredEntries,
-					*args.Pattern,
+					*args.SectionNamePattern,
 				)
 			}
 

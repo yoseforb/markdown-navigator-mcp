@@ -14,9 +14,9 @@ import (
 
 // MarkdownReadSectionArgs defines the input arguments.
 type MarkdownReadSectionArgs struct {
-	FilePath     string `json:"file_path"       jsonschema:"required,description=Path to markdown file"`
-	SectionQuery string `json:"section_query"   jsonschema:"required,description=Section name or search query"`
-	Depth        *int   `json:"depth,omitempty" jsonschema:"description=Maximum subsection depth to include (default: unlimited, 0 = no subsections, 1 = immediate children only)"`
+	FilePath            string `json:"file_path"                       description:"Path to markdown file"                                                                                                                                                                  required:"true"`
+	SectionHeading      string `json:"section_heading"                 description:"Exact heading text to find (case-sensitive, without # symbols). Example: 'Task 2: Implementation' not '## Task 2: Implementation'"                                                      required:"true"`
+	MaxSubsectionLevels *int   `json:"max_subsection_levels,omitempty" description:"Limit subsection depth. Omit to read entire section (recommended). 0=no subsections, 1=immediate children only, 2=children+grandchildren. Warning: This LIMITS content, not expands it"`
 }
 
 // MarkdownReadSectionResponse defines the response structure.
@@ -32,7 +32,7 @@ type MarkdownReadSectionResponse struct {
 func RegisterMarkdownReadSection(srv server.Server) {
 	srv.Tool(
 		"markdown_read_section",
-		"Read a specific section's content",
+		"Read a complete section with all subsections (default) or limit depth. Reads only the requested section, avoiding system reminders on modified files and reducing token usage by 50-70% vs reading entire files.",
 		handleReadSection,
 	)
 }
@@ -60,13 +60,13 @@ func handleReadSection(
 	// Find section bounds
 	startLine, endLine, sectionName, found := ctags.FindSectionBounds(
 		entries,
-		args.SectionQuery,
+		args.SectionHeading,
 	)
 	if !found {
 		return nil, fmt.Errorf(
 			"%w: '%s'",
 			ErrSectionNotFound,
-			args.SectionQuery,
+			args.SectionHeading,
 		)
 	}
 
@@ -80,15 +80,15 @@ func handleReadSection(
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
-	// Apply depth filtering if depth parameter is provided
+	// Apply depth filtering if maxSubsectionLevels parameter is provided
 	filteredContent := content
-	if args.Depth != nil {
+	if args.MaxSubsectionLevels != nil {
 		// Find the root section level
 		rootLevel := findSectionLevel(entries, startLine)
 		if rootLevel > 0 {
-			filteredContent = filterContentByDepth(
+			filteredContent = filterContentByMaxSubsectionLevels(
 				rootLevel,
-				*args.Depth,
+				*args.MaxSubsectionLevels,
 				content,
 			)
 		}
@@ -103,22 +103,26 @@ func handleReadSection(
 	}, nil
 }
 
-// filterContentByDepth filters markdown content to only include headings
+// filterContentByMaxSubsectionLevels filters markdown content to only include headings
 // up to the specified depth relative to the root heading level.
 //
 // Parameters:
 //   - rootLevel: The heading level of the root section (1-6 for H1-H6)
-//   - depth: How many levels deep to include (0 = root only, 1 = root + children, etc.)
+//   - maxSubsectionLevels: How many levels deep to include (0 = root only, 1 = root + children, etc.)
 //   - content: The full markdown content to filter
 //
-// Returns filtered content with headings deeper than (rootLevel + depth) removed.
-func filterContentByDepth(rootLevel int, depth int, content string) string {
-	// Handle depth=0 case - return only content until first subsection
-	if depth <= 0 {
-		return filterDepthZero(rootLevel, content)
+// Returns filtered content with headings deeper than (rootLevel + maxSubsectionLevels) removed.
+func filterContentByMaxSubsectionLevels(
+	rootLevel int,
+	maxSubsectionLevels int,
+	content string,
+) string {
+	// Handle maxSubsectionLevels=0 case - return only content until first subsection
+	if maxSubsectionLevels <= 0 {
+		return filterMaxSubsectionLevelsZero(rootLevel, content)
 	}
 
-	maxAllowedLevel := rootLevel + depth
+	maxAllowedLevel := rootLevel + maxSubsectionLevels
 	var result strings.Builder
 	inSkipMode := false
 
@@ -149,9 +153,9 @@ func filterContentByDepth(rootLevel int, depth int, content string) string {
 	return strings.TrimRight(result.String(), "\n")
 }
 
-// filterDepthZero handles the special case of depth=0 where we only want
+// filterMaxSubsectionLevelsZero handles the special case of maxSubsectionLevels=0 where we only want
 // the root section content without any subsections.
-func filterDepthZero(rootLevel int, content string) string {
+func filterMaxSubsectionLevelsZero(rootLevel int, content string) string {
 	var result strings.Builder
 	headingRegex := regexp.MustCompile(`^(#{1,6})\s+`)
 
@@ -185,16 +189,16 @@ func filterDepthZero(rootLevel int, content string) string {
 	return strings.TrimRight(result.String(), "\n")
 }
 
-// calculateEndLine determines the actual end line based on depth parameter.
-// depth=nil: unlimited depth (read all subsections)
-// depth=0: no subsections (only section content)
-// depth=1: immediate children only (e.g., H2 + H3, skip H4)
-// depth=2: children + grandchildren (e.g., H2 + H3 + H4, skip H5)
-// Negative depth values are treated as 0.
+// calculateEndLine determines the actual end line based on maxSubsectionLevels parameter.
+// maxSubsectionLevels=nil: unlimited depth (read all subsections)
+// maxSubsectionLevels=0: no subsections (only section content)
+// maxSubsectionLevels=1: immediate children only (e.g., H2 + H3, skip H4)
+// maxSubsectionLevels=2: children + grandchildren (e.g., H2 + H3 + H4, skip H5)
+// Negative maxSubsectionLevels values are treated as 0.
 func calculateEndLine(
 	entries []*ctags.TagEntry,
 	startLine, endLine int,
-	depth *int,
+	maxSubsectionLevels *int,
 ) int {
 	// Find the current section's level
 	currentLevel := findSectionLevel(entries, startLine)
@@ -203,13 +207,13 @@ func calculateEndLine(
 	}
 
 	// Handle unlimited depth case
-	if depth == nil {
+	if maxSubsectionLevels == nil {
 		return endLine
 	}
 
-	// Handle depth=0 case - no subsections, only section content
-	if *depth <= 0 {
-		return calculateEndLineDepthZero(
+	// Handle maxSubsectionLevels=0 case - no subsections, only section content
+	if *maxSubsectionLevels <= 0 {
+		return calculateEndLineMaxSubsectionLevelsZero(
 			entries,
 			startLine,
 			endLine,
@@ -217,18 +221,18 @@ func calculateEndLine(
 		)
 	}
 
-	// Depth >= 1: Include children up to specified depth
-	return calculateEndLineWithDepth(
+	// MaxSubsectionLevels >= 1: Include children up to specified depth
+	return calculateEndLineWithMaxSubsectionLevels(
 		entries,
 		startLine,
 		endLine,
 		currentLevel,
-		*depth,
+		*maxSubsectionLevels,
 	)
 }
 
-// calculateEndLineDepthZero handles depth=0 case.
-func calculateEndLineDepthZero(
+// calculateEndLineMaxSubsectionLevelsZero handles maxSubsectionLevels=0 case.
+func calculateEndLineMaxSubsectionLevelsZero(
 	entries []*ctags.TagEntry,
 	startLine, endLine int,
 	currentLevel int,
@@ -250,14 +254,14 @@ func calculateEndLineDepthZero(
 	return endLine
 }
 
-// calculateEndLineWithDepth handles depth >= 1 case.
-func calculateEndLineWithDepth(
+// calculateEndLineWithMaxSubsectionLevels handles maxSubsectionLevels >= 1 case.
+func calculateEndLineWithMaxSubsectionLevels(
 	entries []*ctags.TagEntry,
 	startLine, endLine int,
 	currentLevel int,
-	depth int,
+	maxSubsectionLevels int,
 ) int {
-	maxAllowedLevel := currentLevel + depth
+	maxAllowedLevel := currentLevel + maxSubsectionLevels
 	lastAllowedLine := startLine - 1
 	foundAnyAllowed := false
 

@@ -11,10 +11,10 @@ import (
 
 // MarkdownTreeArgs defines the input arguments for the markdown_tree tool.
 type MarkdownTreeArgs struct {
-	FilePath string  `json:"file_path"           jsonschema:"required,description=Path to markdown file"`
-	Format   *string `json:"format,omitempty"    jsonschema:"description=Output format: json (default) or ascii"`
-	Pattern  *string `json:"pattern,omitempty"   jsonschema:"description=Filter to sections matching pattern"`
-	MaxDepth *int    `json:"max_depth,omitempty" jsonschema:"description=Maximum depth to display (default: 2, 0 = unlimited)"`
+	FilePath           string  `json:"file_path"                      description:"Path to markdown file"                                                                                             required:"true"`
+	Format             *string `json:"format,omitempty"               description:"Output format: 'json' for structured data or 'ascii' for visual tree. Default: 'json'"`
+	SectionNamePattern *string `json:"section_name_pattern,omitempty" description:"Regex pattern to filter which sections appear in tree. Example: 'Task.*' shows only sections starting with 'Task'"`
+	MaxDepth           *int    `json:"max_depth,omitempty"            description:"Maximum tree depth to display (1-6, 0=all). Default: 2 (H1+H2)"`
 }
 
 // MarkdownTreeResponse defines the response structure.
@@ -36,7 +36,7 @@ func splitLines(s string) []string {
 func RegisterMarkdownTree(srv server.Server) {
 	srv.Tool(
 		"markdown_tree",
-		"Display hierarchical document structure (JSON or ASCII format)",
+		"Display hierarchical document structure as visual tree. Use for deeply nested documents when you need to visualize parent-child relationships. For simple section lists, use markdown_list_sections instead.",
 		func(_ *server.Context, args MarkdownTreeArgs) (interface{}, error) {
 			// Note: gomcp's server.Context does not provide request-level context.
 			// Application-level cancellation is handled via signal handling in main.go.
@@ -54,10 +54,11 @@ func RegisterMarkdownTree(srv server.Server) {
 			}
 
 			// Filter by pattern if provided
-			if args.Pattern != nil && *args.Pattern != "" {
+			if args.SectionNamePattern != nil &&
+				*args.SectionNamePattern != "" {
 				entries = ctags.FilterByPatternWithParents(
 					entries,
-					*args.Pattern,
+					*args.SectionNamePattern,
 				)
 			}
 

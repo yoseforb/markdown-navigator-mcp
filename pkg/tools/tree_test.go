@@ -81,9 +81,9 @@ func TestMarkdownTreeResponse_DefaultFormat(t *testing.T) {
 
 	// Test that default format is JSON
 	args := MarkdownTreeArgs{
-		FilePath: "/home/yoseforb/pkg/follow/markdown-mcp/testdata/sample.md",
-		Format:   nil, // Not specified
-		Pattern:  nil,
+		FilePath:           "/home/yoseforb/pkg/follow/markdown-mcp/testdata/sample.md",
+		Format:             nil, // Not specified
+		SectionNamePattern: nil,
 	}
 
 	// We can't easily test the registered tool directly,
