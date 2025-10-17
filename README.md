@@ -308,7 +308,7 @@ List all sections matching filters.
 
 **Parameters:**
 - `file_path` (required): Path to markdown file
-- `heading_level` (optional): Filter by level (H1, H2, H3, H4, or ALL). Default: shows all levels when not specified.
+- `heading_level` (optional): Filter by level (H1, H2, H3, H4, or ALL). Default: `H2` when not specified.
 - `pattern` (optional): Search pattern (fuzzy match). Default: no filtering when not specified.
 
 **Example:**
