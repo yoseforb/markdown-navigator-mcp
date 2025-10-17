@@ -14,7 +14,7 @@ type TagEntry struct {
 	Line    int
 	End     int    // End line of section (from ctags JSON output)
 	Scope   string // Full scope with separators
-	Level   int    // Heading level (1-4)
+	Level   int    // Heading level (1-6)
 }
 
 // kindLevelMap maps ctags kind to heading level.
@@ -26,6 +26,8 @@ var kindLevelMap = map[string]int{ //nolint:gochecknoglobals // immutable lookup
 	"section":       2, // H2: ##
 	"subsection":    3, // H3: ###
 	"subsubsection": 4, // H4: ####
+	"l4subsection":  5, // H5: #####
+	"l5subsection":  6, // H6: ######
 }
 
 // NewTagEntry creates a new TagEntry with level determined from kind.
