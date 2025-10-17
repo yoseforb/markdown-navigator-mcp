@@ -101,6 +101,8 @@ Claude uses:
 Result: Comprehensive overview without loading entire document
 ```
 
+For more detailed tool usage examples with real output, see [examples/EXAMPLES.md](examples/EXAMPLES.md).
+
 ## Configuration
 
 ### Custom ctags path
