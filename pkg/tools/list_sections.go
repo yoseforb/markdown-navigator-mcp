@@ -10,9 +10,9 @@ import (
 
 // MarkdownListSectionsArgs defines the input arguments.
 type MarkdownListSectionsArgs struct {
-	FilePath     string  `json:"file_path"               jsonschema:"required,description=Path to markdown file"`
-	HeadingLevel *string `json:"heading_level,omitempty" jsonschema:"description=Filter by level (H1, H2, H3, H4, or ALL)"`
-	Pattern      *string `json:"pattern,omitempty"       jsonschema:"description=Search pattern (fuzzy match)"`
+	FilePath string  `json:"file_path"           jsonschema:"required,description=Path to markdown file"`
+	MaxDepth *int    `json:"max_depth,omitempty" jsonschema:"description=Maximum heading depth to include (1-6, 0=all). Default: 2"`
+	Pattern  *string `json:"pattern,omitempty"   jsonschema:"description=Search pattern (fuzzy match)"`
 }
 
 // SectionInfo represents a single section in the list.
@@ -33,7 +33,7 @@ type MarkdownListSectionsResponse struct {
 func RegisterMarkdownListSections(srv server.Server) {
 	srv.Tool(
 		"markdown_list_sections",
-		"List all top-level sections (or sections matching a pattern)",
+		"List all sections matching filters (max_depth and/or pattern)",
 		func(_ *server.Context, args MarkdownListSectionsArgs) (interface{}, error) {
 			// Note: gomcp's server.Context does not provide request-level context.
 			// Application-level cancellation is handled via signal handling in main.go.
@@ -50,29 +50,24 @@ func RegisterMarkdownListSections(srv server.Server) {
 				return nil, fmt.Errorf("%w for %s", ErrNoEntries, args.FilePath)
 			}
 
-			// Filter by heading level if specified (ALL means no filtering)
+			// Filter by maximum depth (default: 2, meaning H1+H2)
 			filteredEntries := entries
-			if args.HeadingLevel != nil && *args.HeadingLevel != "" &&
-				*args.HeadingLevel != "ALL" {
-				var level int
-				switch *args.HeadingLevel {
-				case "H1":
-					level = 1
-				case "H2":
-					level = 2
-				case "H3":
-					level = 3
-				case "H4":
-					level = 4
-				default:
-					return nil, fmt.Errorf(
-						"%w: %s (must be H1, H2, H3, H4, or ALL)",
-						ErrInvalidLevel,
-						*args.HeadingLevel,
-					)
-				}
-				filteredEntries = ctags.FilterByLevel(filteredEntries, level)
+			maxDepth := 2 // Default to depth 2 (H1+H2)
+			if args.MaxDepth != nil {
+				maxDepth = *args.MaxDepth
 			}
+
+			// Validate max_depth range
+			if maxDepth < 0 || maxDepth > 6 {
+				return nil, fmt.Errorf(
+					"%w: %d (must be 0-6, where 0 means all levels)",
+					ErrInvalidLevel,
+					maxDepth,
+				)
+			}
+
+			// Apply depth filtering (0 means all levels, no filtering)
+			filteredEntries = ctags.FilterByDepth(filteredEntries, maxDepth)
 
 			// Filter by pattern if specified
 			if args.Pattern != nil && *args.Pattern != "" {
